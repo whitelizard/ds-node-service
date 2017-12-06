@@ -1,7 +1,7 @@
 {
   "name": "ds-node-service",
   "version": "0.1.0",
-  "description": "Base class for Deepstream based Node services",
+  "description": "Base class for Deepstream RPC based Node services",
   "main": "index.js",
   "scripts": {
     "test": "npx babel-node ./test/index.js",
