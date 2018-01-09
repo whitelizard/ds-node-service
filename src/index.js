@@ -56,8 +56,7 @@ export default class BaseService {
 
   provideInterface() {
     Object.keys(this.api).forEach(f =>
-      this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, f)),
-    );
+      this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, f)));
   }
 
   idleLoop = () => {
