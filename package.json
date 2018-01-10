@@ -15,7 +15,7 @@
   "author": "Esbjörn Blomquist",
   "license": "MIT",
   "dependencies": {
-    "extended-ds-client": "^6.0.0",
+    "extended-ds-client": "^6.1.0",
     "lodash.mapvalues": "^4.6.0"
   },
   "devDependencies": {
