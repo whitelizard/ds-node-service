@@ -1,6 +1,6 @@
 {
   "name": "ds-node-service",
-  "version": "0.2.0",
+  "version": "1.0.3",
   "description": "Base class for Deepstream RPC based Node services",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,7 @@
   "author": "Esbjörn Blomquist",
   "license": "MIT",
   "dependencies": {
-    "extended-ds-client": "^5.0.0",
+    "extended-ds-client": "^6.1.1",
     "lodash.mapvalues": "^4.6.0",
     "node-fetch": "^1.7.3"
   },
