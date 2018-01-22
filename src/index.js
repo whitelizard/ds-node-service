@@ -1,6 +1,7 @@
 // import 'babel-polyfill';
 import getClient from 'extended-ds-client';
 import mapValues from 'lodash.mapvalues';
+import fetch from 'node-fetch';
 
 export const rpcSplitChar = '/';
 
@@ -19,16 +20,29 @@ export default class BaseService {
     options,
     splitChar = rpcSplitChar,
     runForever = true,
+    credentials = {},
+    credentialsUrl,
   }) {
     this.c = getClient(address, { ...defaultOptions, ...options });
     this.c.on('error', e => console.log('GLOBAL ERROR:', e));
     this.serviceName = serviceName;
     this.splitChar = splitChar;
     this.runForever = runForever;
+    this.credentials = credentials;
+    this.credentialUrl = credentialsUrl;
     process.on('SIGTERM', () => this.close());
   }
   api;
   loopTimer;
+
+  async fetchCredentials() {
+    const reply = await fetch(this.credentialUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (reply.status !== 201) throw Error('Could not request credentials');
+    return reply.json();
+  }
 
   registerApi(api = {}) {
     this.api = api;
@@ -57,8 +71,7 @@ export default class BaseService {
   provideInterface() {
     if (this.api) {
       Object.keys(this.api).forEach(f =>
-        this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, f)),
-      );
+        this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, f)));
     }
   }
 
@@ -66,9 +79,10 @@ export default class BaseService {
     this.loopTimer = setTimeout(this.idleLoop, 100000);
   };
 
-  start() {
+  async start() {
     // console.log('BaseService.start... runForever:', this.runForever);
-    this.c.p.login({});
+    if (this.credentialUrl) this.credentials = await this.fetchCredentials();
+    this.c.p.login(this.credentials);
     this.provideInterface();
     if (this.runForever) this.idleLoop();
   }
