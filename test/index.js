@@ -1,7 +1,7 @@
 import test from 'blue-tape';
 import DeepstreamServer from 'deepstream.io';
 import getClient from 'extended-ds-client';
-import BaseService from '../src/index';
+import { createRpcService } from '../src/index';
 
 // const rpcSplitChar = '/';
 // const serviceName = 'notification-v1';
@@ -18,17 +18,19 @@ const options = {
 };
 
 test('Start service without deepstream.', async () => {
-  s = new BaseService('localhost:6020');
+  s = createRpcService('localhost:6020');
   s.registerApi({
-    testFunction: () => {},
-    method: [],
+    testFunction: {
+      method: () => {},
+      argDoc: [],
+    },
   });
   s.start();
 });
 
 test('Start deepstream server', async () => {
   dss.start();
-  return new Promise(resolve => setTimeout(resolve, 500));
+  // return new Promise(resolve => setTimeout(resolve, 500));
 });
 
 test('Close client', async t => {
@@ -37,13 +39,15 @@ test('Close client', async t => {
 });
 
 test('Create & start service again with api registration', async () => {
-  s = new BaseService('localhost:6020');
+  s = createRpcService('localhost:6020');
   s.registerApi({
-    testFunction: () => {},
-    method: [],
+    testFunction: {
+      method: () => {},
+      argDoc: [],
+    },
   });
   s.start();
-  return new Promise(resolve => setTimeout(resolve, 1000));
+  // return new Promise(resolve => setTimeout(resolve, 1000));
 });
 
 test('Create Test-client', async () => {
@@ -58,7 +62,7 @@ test('Shutdown deepstream', async () => {
 
 test('Restart new deepstream', async () => {
   dss2.start();
-  return new Promise(resolve => setTimeout(resolve, 1000));
+  // return new Promise(resolve => setTimeout(resolve, 1000));
 });
 
 test('Close clients', async t => {
