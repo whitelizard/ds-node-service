@@ -1,9 +1,16 @@
 // import 'babel-polyfill';
+import { typeCheck } from 'type-check';
 import getClient from 'extended-ds-client';
 import mapValues from 'lodash.mapvalues';
 import fetch from 'node-fetch';
 
 export const rpcSplitChar = '/';
+
+export function typeAssert(type, variable, code) {
+  if (!typeCheck(type, variable)) {
+    throw new TypeError(`${code ? `[${code}] ` : ''}${JSON.stringify(variable)} not of type ${type}`);
+  }
+}
 
 const defaultOptions = {
   // Reconnection procedure: R 1s R 2s R 3s ... R 8s R 8s ...
@@ -12,6 +19,28 @@ const defaultOptions = {
   maxReconnectAttempts: Infinity,
   heartbeatInterval: 60000,
 };
+
+async function fetchCredentials(url) {
+  const reply = await fetch(url);
+  if (reply.status !== 201) throw new Error('Could not request credentials');
+  return reply.json();
+}
+
+let loopTimer;
+const idleLoop = () => {
+  loopTimer = setTimeout(idleLoop, 100000);
+};
+
+async function onRpc(data = {}, response) {
+  try {
+    console.log('onRpc');
+    const result = await this.method(data);
+    response.send(result);
+  } catch (err) {
+    console.log('RPC ERROR:', err);
+    response.error(err.message);
+  }
+}
 
 export default class BaseService {
   constructor({
@@ -29,20 +58,10 @@ export default class BaseService {
     this.splitChar = splitChar;
     this.runForever = runForever;
     this.credentials = credentials;
-    this.credentialUrl = credentialsUrl;
+    this.credentialsUrl = credentialsUrl;
     process.on('SIGTERM', () => this.close());
   }
-  api;
-  loopTimer;
-
-  async fetchCredentials() {
-    const reply = await fetch(this.credentialUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (reply.status !== 201) throw Error('Could not request credentials');
-    return reply.json();
-  }
+  api = {};
 
   registerApi(api = {}) {
     this.api = api;
@@ -58,37 +77,36 @@ export default class BaseService {
 
   getInterface = () => mapValues(this.api, v => v.argDoc);
 
-  async onRpc(funcName, data = {}, response) {
-    try {
-      const result = await this.api[funcName].method(data);
-      response.send(result);
-    } catch (err) {
-      console.log('RPC ERROR:', err);
-      response.error(err.message);
-    }
-  }
+  // async onRpc(func, data = {}, response) {
+  //   try {
+  //     console.log('onRpc');
+  //     const result = await func(data);
+  //     response.send(result);
+  //   } catch (err) {
+  //     console.log('RPC ERROR:', err);
+  //     response.error(err.message);
+  //   }
+  // }
 
   provideInterface() {
-    if (this.api) {
-      Object.keys(this.api).forEach(f =>
-        this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, f)));
-    }
+    Object.keys(this.api).forEach(f =>
+      this.c.rpc.provide(this.rpcPath(f), onRpc.bind(this.api[f])));
+    // Object.keys(this.api).forEach(f => {
+    //   console.log('provide function:', f, this.api[f], this.rpcPath(f));
+    //   this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, this.api[f].method));
+    // });
   }
 
-  idleLoop = () => {
-    this.loopTimer = setTimeout(this.idleLoop, 100000);
-  };
-
   async start() {
-    // console.log('BaseService.start... runForever:', this.runForever);
-    if (this.credentialUrl) this.credentials = await this.fetchCredentials();
+    console.log('BaseService.start... runForever:', this.runForever);
+    if (this.credentialsUrl) this.credentials = await fetchCredentials(this.credentialsUrl);
     this.c.p.login(this.credentials);
     this.provideInterface();
-    if (this.runForever) this.idleLoop();
+    if (this.runForever) idleLoop();
   }
 
   close() {
-    if (this.loopTimer) clearTimeout(this.loopTimer);
+    if (loopTimer) clearTimeout(loopTimer);
     Object.keys(this.api).forEach(f => this.c.rpc.unprovide(this.rpcPath(f))); // unnecessary?
     this.c.close();
   }
