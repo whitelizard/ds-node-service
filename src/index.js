@@ -51,6 +51,8 @@ export default class BaseService {
     credentials = {},
     credentialsUrl,
   }) {
+    // TODO: Merge credentials in start, add arguments for defaultCredentials and
+    // overrideCredentials (Don't set id to serviceName)
     this.c = getClient(address, { ...defaultOptions, ...options });
     this.c.on('error', e => console.log('GLOBAL ERROR:', e));
     this.serviceName = serviceName;
