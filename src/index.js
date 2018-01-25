@@ -33,7 +33,6 @@ const idleLoop = () => {
 
 async function onRpc(data = {}, response) {
   try {
-    console.log('onRpc');
     const result = await this.method(data);
     response.send(result);
   } catch (err) {
@@ -77,38 +76,23 @@ export default class BaseService {
 
   getInterface = () => mapValues(this.api, v => v.argDoc);
 
-  // async onRpc(func, data = {}, response) {
-  //   try {
-  //     console.log('onRpc');
-  //     const result = await func(data);
-  //     response.send(result);
-  //   } catch (err) {
-  //     console.log('RPC ERROR:', err);
-  //     response.error(err.message);
-  //   }
-  // }
-
   provideInterface() {
     Object.keys(this.api).forEach(f =>
       this.c.rpc.provide(this.rpcPath(f), onRpc.bind(this.api[f])));
-    // Object.keys(this.api).forEach(f => {
-    //   console.log('provide function:', f, this.api[f], this.rpcPath(f));
-    //   this.c.rpc.provide(this.rpcPath(f), this.onRpc.bind(this, this.api[f].method));
-    // });
   }
 
   async start() {
-    console.log('BaseService.start... runForever:', this.runForever);
+    // console.log('BaseService.start... runForever:', this.runForever);
     if (this.credentialsUrl) this.credentials = await fetchCredentials(this.credentialsUrl);
-    this.c.p.login(this.credentials);
+    this.c.login(this.credentials);
     this.provideInterface();
     if (this.runForever) idleLoop();
   }
 
-  close() {
+  async close() {
     if (loopTimer) clearTimeout(loopTimer);
     Object.keys(this.api).forEach(f => this.c.rpc.unprovide(this.rpcPath(f))); // unnecessary?
-    this.c.close();
+    await this.c.close();
   }
 }
 

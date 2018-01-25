@@ -1,7 +1,7 @@
 import test from 'blue-tape';
 import express from 'express';
 import bodyParser from 'body-parser';
-import DeepstreamServer from 'deepstream.io';
+import Deepstream from 'deepstream.io';
 import getClient from 'extended-ds-client';
 import BaseService from '../src/index';
 
@@ -19,11 +19,15 @@ app.get('/getAuthToken', (req, res) => {
 });
 app.listen(3000);
 
-const dss = new DeepstreamServer();
-const dss2 = new DeepstreamServer();
+const dss = new Deepstream();
+const dss2 = new Deepstream();
 let c;
 let s;
 let signal;
+
+let resolveConnected;
+let connProm;
+
 const options = {
   // Reconnection procedure: R 1s R 2s R 3s ... R 8s R 8s ...
   reconnectIntervalIncrement: 1000,
@@ -32,6 +36,29 @@ const options = {
   heartbeatInterval: 60000,
 };
 
+// class Service extends BaseService {
+//   signal;
+//   constructor() {
+//     super({
+//       address: 'localhost:6020',
+//       options,
+//       credentialsUrl: 'http://localhost:3000/getAuthToken',
+//       runForever: false,
+//     });
+//     this.registerApi({
+//       testFunction: {
+//         method: () => {
+//           signal = 1;
+//         },
+//         argDoc: [],
+//       },
+//     });
+//   }
+// }
+
+connProm = new Promise(resolve => {
+  resolveConnected = resolve;
+});
 test('Start service without deepstream.', async () => {
   s = new BaseService({
     address: 'localhost:6020',
@@ -46,32 +73,37 @@ test('Start service without deepstream.', async () => {
       argDoc: [],
     },
   });
-  s.start();
+  // s = new Service();
+  await s.start();
+  s.c.on('connectionStateChanged', cState => {
+    if (cState === 'OPEN') resolveConnected();
+  });
 });
-
 test('Start deepstream server', async () => {
   dss.start();
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // return new Promise(resolve => setTimeout(resolve, 3000));
+  return connProm;
 });
 
-test('Create Test-client', async () => {
+test('Create Test-client & request service', async t => {
   c = getClient('localhost:6020', options);
   c.on('error', e => console.log('Test-client Error:', e));
-  await new Promise(resolve => setTimeout(resolve, 20));
-});
-
-test('Request service', async t => {
-  const res = await c.rpc.p.make('service/testFunction');
-  t.ok(res === undefined);
-  t.ok(signal === 1);
+  c.login({});
+  await c.rpc.p.make('service/testFunction');
+  t.equal(signal, 1);
 });
 
 test('Close service', async t => {
   s.close();
+  s = undefined;
+  await new Promise(resolve => setTimeout(resolve, 1000));
   t.ok(true);
 });
 
-test('Create & start service again with api registration', async t => {
+connProm = new Promise(resolve => {
+  resolveConnected = resolve;
+});
+test('Create & start service again with api registration', async () => {
   s = new BaseService({
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
@@ -85,15 +117,22 @@ test('Create & start service again with api registration', async t => {
       argDoc: [],
     },
   });
-  s.start();
-  // await new Promise(resolve => setTimeout(resolve, 1000));
-  await c.rpc.p.make('service/testFunction');
-  t.ok(signal === 2);
+  await s.start();
+  s.c.on('connectionStateChanged', cState => {
+    if (cState === 'OPEN') resolveConnected();
+  });
+  return connProm;
 });
 
-test('Restart new deepstream', async () => {
+test('Request service', async t => {
+  await c.rpc.p.make('service/testFunction');
+  t.equal(signal, 2);
+});
+
+test('Restart deepstream', async () => {
   dss.stop();
   dss2.start();
+  return connProm;
 });
 
 test('Close clients', async t => {
