@@ -83,7 +83,10 @@ export default class BaseService {
 
   async start() {
     // console.log('BaseService.start... runForever:', this.runForever);
-    if (this.credentialsUrl) this.credentials = await fetchCredentials(this.credentialsUrl);
+    if (this.credentialsUrl) {
+      this.credentials = await fetchCredentials(this.credentialsUrl);
+      this.credentials.id = this.serviceName;
+    }
     this.c.login(this.credentials);
     this.provideInterface();
     if (this.runForever) idleLoop();

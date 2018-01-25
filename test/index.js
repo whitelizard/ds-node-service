@@ -17,7 +17,7 @@ app.get('/getAuthToken', (req, res) => {
     res.status(500); // status Internal Server Error
   }
 });
-app.listen(3000);
+const restServer = app.listen(3000);
 
 const dss = new Deepstream();
 const dss2 = new Deepstream();
@@ -59,7 +59,7 @@ const options = {
 connProm = new Promise(resolve => {
   resolveConnected = resolve;
 });
-test('Start service without deepstream.', async () => {
+test('Start service without deepstream.', async t => {
   s = new BaseService({
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
@@ -78,6 +78,7 @@ test('Start service without deepstream.', async () => {
   s.c.on('connectionStateChanged', cState => {
     if (cState === 'OPEN') resolveConnected();
   });
+  t.ok(true);
 });
 test('Start deepstream server', async () => {
   dss.start();
@@ -102,8 +103,8 @@ test('Close service', async t => {
 
 connProm = new Promise(resolve => {
   resolveConnected = resolve;
-});
-test('Create & start service again with api registration', async () => {
+}).then(state => console.log(state));
+test('Create & start service again with api registration', async t => {
   s = new BaseService({
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
@@ -117,10 +118,13 @@ test('Create & start service again with api registration', async () => {
       argDoc: [],
     },
   });
-  await s.start();
   s.c.on('connectionStateChanged', cState => {
-    if (cState === 'OPEN') resolveConnected();
+    console.log(cState);
+    if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
   });
+  await s.start();
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  t.ok(true);
   return connProm;
 });
 
@@ -132,7 +136,6 @@ test('Request service', async t => {
 test('Restart deepstream', async () => {
   dss.stop();
   dss2.start();
-  return connProm;
 });
 
 test('Close clients', async t => {
@@ -141,6 +144,7 @@ test('Close clients', async t => {
   t.ok(true);
 });
 
-test('Shutdown deepstream final', async () => {
+test('Shutdown servers', async () => {
   dss2.stop();
+  restServer.close();
 });
