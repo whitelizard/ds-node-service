@@ -21,9 +21,16 @@ const defaultOptions = {
 };
 
 async function fetchCredentials(url) {
-  const reply = await fetch(url);
-  if (reply.status !== 201) throw new Error('Could not request credentials');
-  return reply.json();
+  let reply;
+  try {
+    reply = await fetch(url);
+    if (reply.status === 201) {
+      return reply.json();
+    }
+  } catch (err) {
+    console.log('Will retry credentials fetch due to:', err);
+  }
+  return new Promise(r => setTimeout(r, 1000)).then(fetchCredentials.bind(this, url));
 }
 
 let loopTimer;
@@ -53,6 +60,7 @@ export default class BaseService {
   }) {
     // TODO: Merge credentials in start, add arguments for defaultCredentials and
     // overrideCredentials (Don't set id to serviceName)
+    // TODO: Hook up fetchCredentials to deepstream client in case of reconnect
     this.c = getClient(address, { ...defaultOptions, ...options });
     this.c.on('error', e => console.log('GLOBAL ERROR:', e));
     this.serviceName = serviceName;

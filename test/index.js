@@ -17,7 +17,10 @@ app.get('/getAuthToken', (req, res) => {
     res.status(500); // status Internal Server Error
   }
 });
-const restServer = app.listen(3000);
+let restServer;
+setTimeout(() => {
+  restServer = app.listen(3000);
+}, 3000);
 
 const dss = new Deepstream();
 const dss2 = new Deepstream();
