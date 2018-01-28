@@ -1,9 +1,16 @@
-// import 'babel-polyfill';
+import 'babel-polyfill';
+import { typeCheck } from 'type-check';
 import getClient from 'extended-ds-client';
 import mapValues from 'lodash.mapvalues';
 import fetch from 'node-fetch';
 
 export const rpcSplitChar = '/';
+
+export function typeAssert(type, variable, code) {
+  if (!typeCheck(type, variable)) {
+    throw new TypeError(`${code ? `[${code}] ` : ''}${JSON.stringify(variable)} not of type ${type}`);
+  }
+}
 
 const defaultOptions = {
   // Reconnection procedure: R 1s R 2s R 3s ... R 8s R 8s ...
@@ -14,17 +21,26 @@ const defaultOptions = {
 };
 
 async function fetchCredentials(url) {
-  const reply = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (reply.status !== 201) throw Error('Could not request credentials');
-  return reply.json();
+  let reply;
+  try {
+    reply = await fetch(url);
+    if (reply.status === 201) {
+      return reply.json();
+    }
+  } catch (err) {
+    console.log('Will retry credentials fetch due to:', err);
+  }
+  return new Promise(r => setTimeout(r, 1000)).then(fetchCredentials.bind(this, url));
 }
+
+let loopTimer;
+const idleLoop = () => {
+  loopTimer = setTimeout(idleLoop, 100000);
+};
 
 async function onRpc(data = {}, response) {
   try {
-    const result = await this.f(data);
+    const result = await this.method(data);
     response.send(result);
   } catch (err) {
     console.log('RPC ERROR:', err);
@@ -32,12 +48,7 @@ async function onRpc(data = {}, response) {
   }
 }
 function provideInterface(client, pathFunc, api) {
-  Object.keys(api).forEach(f => client.rpc.provide(pathFunc(f), onRpc.bind({ f: api[f].method })));
-}
-
-let loopTimer;
-function idleLoop() {
-  loopTimer = setTimeout(idleLoop, 100000);
+  Object.keys(api).forEach(f => client.rpc.provide(pathFunc(f), onRpc.bind(api[f])));
 }
 
 function registerApi(api = {}) {
@@ -53,16 +64,20 @@ function rpcPath(name) {
 }
 
 async function start() {
-  if (this.credentialsUrl) this.credentials = await fetchCredentials(this.credentialsUrl);
-  this.c.p.login(this.credentials);
+  // console.log('BaseService.start... runForever:', this.runForever);
+  if (this.credentialsUrl) {
+    this.credentials = await fetchCredentials(this.credentialsUrl);
+    this.credentials.id = this.serviceName;
+  }
+  this.c.login(this.credentials);
   provideInterface(this.c, this.rpcPath, this.api);
   if (this.runForever) idleLoop();
 }
 
-function close() {
+async function close() {
   if (loopTimer) clearTimeout(loopTimer);
   Object.keys(this.api).forEach(f => this.c.rpc.unprovide(this.rpcPath(f))); // unnecessary?
-  this.c.close();
+  await this.c.close();
 }
 
 export const createRpcService = ({
@@ -88,7 +103,14 @@ export const createRpcService = ({
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
   obj.close = close.bind(obj);
+  process.on('SIGTERM', () => this.close());
 
   return Object.assign(Object.create({ constructor: createRpcService }), obj);
 };
 createRpcService.of = createRpcService;
+
+// let service;
+// if (require.main === module) {
+//   service = new Service('deepstream:6020');
+//   service.start();
+// }
