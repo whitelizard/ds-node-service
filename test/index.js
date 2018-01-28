@@ -39,26 +39,6 @@ const options = {
   heartbeatInterval: 60000,
 };
 
-// class Service extends BaseService {
-//   signal;
-//   constructor() {
-//     super({
-//       address: 'localhost:6020',
-//       options,
-//       credentialsUrl: 'http://localhost:3000/getAuthToken',
-//       runForever: false,
-//     });
-//     this.registerApi({
-//       testFunction: {
-//         method: () => {
-//           signal = 1;
-//         },
-//         argDoc: [],
-//       },
-//     });
-//   }
-// }
-
 connProm = new Promise(resolve => {
   resolveConnected = resolve;
 });
@@ -76,7 +56,6 @@ test('Start service without deepstream.', async t => {
       argDoc: [],
     },
   });
-  // s = new Service();
   await s.start();
   s.c.on('connectionStateChanged', cState => {
     if (cState === 'OPEN') resolveConnected();
@@ -85,7 +64,6 @@ test('Start service without deepstream.', async t => {
 });
 test('Start deepstream server', async () => {
   dss.start();
-  // return new Promise(resolve => setTimeout(resolve, 3000));
   return connProm;
 });
 
