@@ -64,7 +64,6 @@ function rpcPath(name) {
 }
 
 async function start() {
-  // console.log('BaseService.start... runForever:', this.runForever);
   if (this.credentialsUrl) {
     this.credentials = await fetchCredentials(this.credentialsUrl);
     this.credentials.id = this.serviceName;
