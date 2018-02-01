@@ -57,7 +57,7 @@ test('Start service without deepstream.', async t => {
     },
   });
   await s.start();
-  s.c.on('connectionStateChanged', cState => {
+  s.client.on('connectionStateChanged', cState => {
     if (cState === 'OPEN') resolveConnected();
   });
   t.ok(true);
@@ -99,7 +99,7 @@ test('Create & start service again with api registration', async t => {
       argDoc: [],
     },
   });
-  s.c.on('connectionStateChanged', cState => {
+  s.client.on('connectionStateChanged', cState => {
     console.log(cState);
     if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
   });
