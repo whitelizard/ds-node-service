@@ -1,4 +1,4 @@
-import 'babel-polyfill';
+// import 'babel-polyfill';
 import { typeCheck } from 'type-check';
 import getClient from 'extended-ds-client';
 import mapValues from 'lodash.mapvalues';
@@ -40,10 +40,11 @@ const idleLoop = () => {
 
 async function onRpc(data = {}, response) {
   try {
-    const result = await this.method(data);
+    const { id } = response._connection._authParams;
+    const result = await this.method(data, id);
     response.send(result);
   } catch (err) {
-    console.log('RPC ERROR:', err);
+    // console.log('RPC ERROR:', err);
     response.error(err.message);
   }
 }
@@ -68,15 +69,15 @@ async function start() {
     this.credentials = await fetchCredentials(this.credentialsUrl);
     this.credentials.id = this.serviceName;
   }
-  this.c.login(this.credentials);
-  provideInterface(this.c, this.rpcPath, this.api);
+  this.client.login(this.credentials);
+  provideInterface(this.client, this.rpcPath, this.api);
   if (this.runForever) idleLoop();
 }
 
 async function close() {
   if (loopTimer) clearTimeout(loopTimer);
-  Object.keys(this.api).forEach(f => this.c.rpc.unprovide(this.rpcPath(f))); // unnecessary?
-  await this.c.close();
+  Object.keys(this.api).forEach(f => this.client.rpc.unprovide(this.rpcPath(f))); // unnecessary?
+  await this.client.close();
 }
 
 export const createRpcService = ({
@@ -94,9 +95,9 @@ export const createRpcService = ({
     runForever,
     credentials,
     credentialsUrl,
-    c: getClient(address, { ...defaultOptions, ...options }),
+    client: getClient(address, { ...defaultOptions, ...options }),
   };
-  obj.c.on('error', e => console.log('GLOBAL ERROR:', e));
+  obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
 
   obj.registerApi = registerApi.bind(obj);
   obj.rpcPath = rpcPath.bind(obj);
@@ -107,6 +108,8 @@ export const createRpcService = ({
   return Object.assign(Object.create({ constructor: createRpcService }), obj);
 };
 createRpcService.of = createRpcService;
+
+export default createRpcService;
 
 // let service;
 // if (require.main === module) {
