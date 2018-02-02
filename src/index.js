@@ -83,7 +83,7 @@ async function close() {
 export function createRpcService({
   serviceName = 'service',
   address,
-  options,
+  options = {},
   splitChar = rpcSplitChar,
   runForever = true,
   credentials = {},
@@ -95,8 +95,8 @@ export function createRpcService({
     runForever,
     credentials,
     credentialsUrl,
-    client: getClient(address, { ...defaultOptions, ...options }),
   };
+  obj.client = getClient(address, { ...defaultOptions, ...options });
   obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
   obj.api = {};
   obj.registerApi = registerApi.bind(obj);
@@ -110,9 +110,27 @@ export function createRpcService({
 }
 createRpcService.of = createRpcService;
 
-const Service = createRpcService;
-Service.prototype = {};
+// const Service = createRpcService;
+// Service.prototype = {};
+// export default Service;
+
+function Service(args) {
+  const obj = createRpcService(args);
+  Object.getOwnPropertyNames(obj).forEach(k => {
+    this[k] = typeof obj[k] === 'function' ? obj[k].bind(this) : obj[k];
+  });
+}
 export default Service;
+// this[k] = obj[k];
+// Service.prototype.start = start;
+// Service.prototype.close = close;
+
+// function _Service(args) {
+//   // this = createRpcService(args);
+//   this.prototype = createRpcService.bind(this)(args);
+// }
+// const Service = _Service.bind(createRpcService({ address: '' }));
+// Service.prototype = null;
 
 // let service;
 // if (require.main === module) {
