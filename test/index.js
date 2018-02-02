@@ -102,7 +102,12 @@ test('Inherit from Service', async t => {
         runForever,
       });
     }
+    testFunc() {
+      return true;
+    }
   }
+  Object.setPrototypeOf(MyService.prototype, Service.prototype);
+  Object.setPrototypeOf(MyService, Service);
   const ms = new MyService({
     name: serviceName,
     address: 'localhost:6020',
@@ -114,8 +119,8 @@ test('Inherit from Service', async t => {
     if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
   });
   await ms.start();
-  // await new Promise(resolve => setTimeout(resolve, 1000));
   t.ok(true);
+  t.ok(ms.testFunc());
   await connProm;
   ms.close();
 });

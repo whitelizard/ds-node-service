@@ -80,7 +80,7 @@ async function close() {
   await this.client.close();
 }
 
-export const createRpcService = ({
+export function createRpcService({
   serviceName = 'service',
   address,
   options,
@@ -88,7 +88,7 @@ export const createRpcService = ({
   runForever = true,
   credentials = {},
   credentialsUrl,
-}) => {
+}) {
   const obj = {
     serviceName,
     splitChar,
@@ -105,8 +105,9 @@ export const createRpcService = ({
   obj.close = close.bind(obj);
   process.on('SIGTERM', () => this.close());
 
-  return Object.assign(Object.create({ constructor: createRpcService }), obj);
-};
+  // return Object.assign(Object.create({ constructor: createRpcService }), obj);
+  return obj;
+}
 createRpcService.of = createRpcService;
 
 const Service = createRpcService;
