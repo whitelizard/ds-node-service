@@ -98,7 +98,7 @@ export const createRpcService = ({
     client: getClient(address, { ...defaultOptions, ...options }),
   };
   obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
-
+  obj.api = {};
   obj.registerApi = registerApi.bind(obj);
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
@@ -109,10 +109,12 @@ export const createRpcService = ({
 };
 createRpcService.of = createRpcService;
 
-export default createRpcService;
+const Service = createRpcService;
+Service.prototype = {};
+export default Service;
 
 // let service;
 // if (require.main === module) {
-//   service = new Service('deepstream:6020');
+//   service = createRpcService('deepstream:6020');
 //   service.start();
 // }

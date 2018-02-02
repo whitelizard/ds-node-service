@@ -3,7 +3,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import Deepstream from 'deepstream.io';
 import getClient from 'extended-ds-client';
-import { createRpcService } from '../src/index';
+import Service, { createRpcService } from '../src/index';
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -27,6 +27,8 @@ const dss2 = new Deepstream();
 let c;
 let s;
 let signal;
+const rpcData = { arg1: 'val1', arg2: 2 };
+const serviceName = 'testService';
 
 let resolveConnected;
 let connProm;
@@ -39,19 +41,22 @@ const options = {
   heartbeatInterval: 60000,
 };
 
-connProm = new Promise(resolve => {
-  resolveConnected = resolve;
-});
 test('Start service without deepstream.', async t => {
+  connProm = new Promise(resolve => {
+    resolveConnected = resolve;
+  });
   s = createRpcService({
+    serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
     runForever: false,
   });
   s.registerApi({
     testFunction: {
-      method: () => {
+      method: (data, id) => {
         signal = 1;
+        t.same(data, rpcData);
+        t.equal(id, serviceName);
       },
       argDoc: [],
     },
@@ -71,7 +76,7 @@ test('Create Test-client & request service', async t => {
   c = getClient('localhost:6020', options);
   c.on('error', e => console.log('Test-client Error:', e));
   c.login({});
-  await c.rpc.p.make('service/testFunction');
+  await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 1);
 });
 
@@ -82,19 +87,55 @@ test('Close service', async t => {
   t.ok(true);
 });
 
-connProm = new Promise(resolve => {
-  resolveConnected = resolve;
-}).then(state => console.log(state));
+test('Inherit from Service', async t => {
+  connProm = new Promise(resolve => {
+    resolveConnected = resolve;
+  }).then(state => console.log(state));
+  class MyService extends Service {
+    constructor({
+      name, address, credentialsUrl, runForever,
+    }) {
+      super({
+        serviceName: name,
+        address,
+        credentialsUrl,
+        runForever,
+      });
+    }
+  }
+  const ms = new MyService({
+    name: serviceName,
+    address: 'localhost:6020',
+    credentialsUrl: 'http://localhost:3000/getAuthToken',
+    runForever: false,
+  });
+  ms.client.on('connectionStateChanged', cState => {
+    console.log(cState);
+    if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
+  });
+  await ms.start();
+  // await new Promise(resolve => setTimeout(resolve, 1000));
+  t.ok(true);
+  await connProm;
+  ms.close();
+});
+
 test('Create & start service again with api registration', async t => {
+  connProm = new Promise(resolve => {
+    resolveConnected = resolve;
+  }).then(state => console.log(state));
   s = createRpcService({
+    serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
     runForever: false,
   });
   s.registerApi({
     testFunction: {
-      method: () => {
+      method: (data, id) => {
         signal = 2;
+        t.same(data, rpcData);
+        t.equal(id, serviceName);
       },
       argDoc: [],
     },
@@ -110,7 +151,7 @@ test('Create & start service again with api registration', async t => {
 });
 
 test('Request service', async t => {
-  await c.rpc.p.make('service/testFunction');
+  await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 2);
 });
 
