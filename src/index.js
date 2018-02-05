@@ -70,7 +70,7 @@ async function start() {
     this.credentials.id = this.serviceName;
   }
   this.client.login(this.credentials);
-  provideInterface(this.client, this.rpcPath, this.api);
+  provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.runForever) idleLoop();
 }
 
@@ -110,27 +110,20 @@ export function createRpcService({
 }
 createRpcService.of = createRpcService;
 
-// const Service = createRpcService;
-// Service.prototype = {};
-// export default Service;
-
 function Service(args) {
   const obj = createRpcService(args);
   Object.getOwnPropertyNames(obj).forEach(k => {
-    this[k] = typeof obj[k] === 'function' ? obj[k].bind(this) : obj[k];
+    if (typeof obj[k] !== 'function') {
+      console.log('LINKING:', k);
+      this[k] = obj[k];
+    }
   });
 }
+Service.prototype.start = start;
+Service.prototype.close = close;
+Service.prototype.rpcPath = rpcPath;
+Service.prototype.registerApi = registerApi;
 export default Service;
-// this[k] = obj[k];
-// Service.prototype.start = start;
-// Service.prototype.close = close;
-
-// function _Service(args) {
-//   // this = createRpcService(args);
-//   this.prototype = createRpcService.bind(this)(args);
-// }
-// const Service = _Service.bind(createRpcService({ address: '' }));
-// Service.prototype = null;
 
 // let service;
 // if (require.main === module) {
