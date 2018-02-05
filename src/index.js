@@ -114,7 +114,6 @@ function Service(args) {
   const obj = createRpcService(args);
   Object.getOwnPropertyNames(obj).forEach(k => {
     if (typeof obj[k] !== 'function') {
-      console.log('LINKING:', k);
       this[k] = obj[k];
     }
   });
