@@ -58,6 +58,7 @@ function registerApi(api = {}) {
     method: () => mapValues(this.api, v => v.argDoc),
     argDoc: [],
   };
+  console.log(this.api);
 }
 
 function rpcPath(name) {
@@ -70,14 +71,14 @@ async function start() {
     this.credentials.id = this.serviceName;
   }
   this.client.login(this.credentials);
+  console.log('In START:', this.api);
   provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.runForever) idleLoop();
 }
 
-async function close() {
+function close() {
   if (loopTimer) clearTimeout(loopTimer);
-  Object.keys(this.api).forEach(f => this.client.rpc.unprovide(this.rpcPath(f))); // unnecessary?
-  await this.client.close();
+  return this.client.close();
 }
 
 export function createRpcService({
@@ -103,12 +104,18 @@ export function createRpcService({
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
   obj.close = close.bind(obj);
-  process.on('SIGTERM', () => this.close());
+  process.on('SIGTERM', () => {
+    console.log('Process closing stuff');
+    obj.close();
+  });
 
-  // return Object.assign(Object.create({ constructor: createRpcService }), obj);
-  return obj;
+  return Object.assign(Object.create({ constructor: createRpcService }), obj);
+  // return obj;
 }
 createRpcService.of = createRpcService;
+
+// ================================================================================
+//  Class simulation for backward compatibility and cases where inheritance fit
 
 function Service(args) {
   const obj = createRpcService(args);
