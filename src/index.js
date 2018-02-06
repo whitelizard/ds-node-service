@@ -17,7 +17,6 @@ const defaultOptions = {
   reconnectIntervalIncrement: 1000,
   maxReconnectInterval: 8000,
   maxReconnectAttempts: Infinity,
-  heartbeatInterval: 60000,
 };
 
 async function fetchCredentials(url) {
@@ -58,7 +57,6 @@ function registerApi(api = {}) {
     method: () => mapValues(this.api, v => v.argDoc),
     argDoc: [],
   };
-  console.log(this.api);
 }
 
 function rpcPath(name) {
@@ -71,7 +69,6 @@ async function start() {
     this.credentials.id = this.serviceName;
   }
   this.client.login(this.credentials);
-  console.log('In START:', this.api);
   provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.runForever) idleLoop();
 }
@@ -79,6 +76,10 @@ async function start() {
 function close() {
   if (loopTimer) clearTimeout(loopTimer);
   return this.client.close();
+}
+
+function getApi() {
+  return this.api;
 }
 
 export function createRpcService({
@@ -100,14 +101,12 @@ export function createRpcService({
   obj.client = getClient(address, { ...defaultOptions, ...options });
   obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
   obj.api = {};
+  obj.getApi = getApi.bind(obj);
   obj.registerApi = registerApi.bind(obj);
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
   obj.close = close.bind(obj);
-  process.on('SIGTERM', () => {
-    console.log('Process closing stuff');
-    obj.close();
-  });
+  process.on('SIGTERM', () => obj.close());
 
   return Object.assign(Object.create({ constructor: createRpcService }), obj);
   // return obj;
