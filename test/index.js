@@ -38,7 +38,6 @@ const options = {
   reconnectIntervalIncrement: 1000,
   maxReconnectInterval: 8000,
   maxReconnectAttempts: Infinity,
-  heartbeatInterval: 60000,
 };
 
 test('Start service without deepstream.', async t => {
@@ -53,10 +52,10 @@ test('Start service without deepstream.', async t => {
   });
   s.registerApi({
     testFunction: {
-      method: (data, id) => {
+      method: data => {
         signal = 1;
         t.same(data, rpcData);
-        t.equal(id, serviceName);
+        // t.equal(id, serviceName);
       },
       argDoc: [],
     },
@@ -137,10 +136,10 @@ test('Create & start service again with api registration', async t => {
   });
   s.registerApi({
     testFunction: {
-      method: (data, id) => {
+      method: data => {
         signal = 2;
         t.same(data, rpcData);
-        t.equal(id, serviceName);
+        // t.equal(id, serviceName);
       },
       argDoc: [],
     },
