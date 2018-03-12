@@ -20,7 +20,7 @@ const defaultOptions = {
 };
 
 async function fetchCredentials(url) {
-  console.log('CLOSING STATUS: ', this.closing);
+  if (this.closing) return undefined;
   let reply;
   try {
     reply = await fetch(url);
@@ -30,14 +30,10 @@ async function fetchCredentials(url) {
   } catch (err) {
     console.log('Will retry credentials fetch due to:', err);
   }
-  return new Promise(r => {
-    this.fetchCredentialsTimeout = setTimeout(r, 1000);
-    console.log('NEW TIMER: ', this.fetchCredentialsTimeout);
-  }).then(this.fetchCredentials.bind(this, url));
+  return new Promise(r => setTimeout(r, 1000)).then(this.fetchCredentials.bind(this, url));
 }
 
 async function updateCredentials() {
-  console.log('updateCredentials');
   if (this.credentialsUrl) {
     this.credentials = await this.fetchCredentials(this.credentialsUrl);
     this.credentials.id = this.serviceName;
@@ -45,7 +41,7 @@ async function updateCredentials() {
   }
 }
 
-async function connectionStateChangedCallback(state) {
+function connectionStateChangedCallback(state) {
   if (state === 'RECONNECTING' && this.credentialsUrl && !this.closing) {
     console.log('Re-fetching credentials...');
     this.updateCredentials();
@@ -84,7 +80,8 @@ function rpcPath(name) {
 
 async function start() {
   this.closing = false;
-  this.updateCredentials();
+  this.client.on('connectionStateChanged', this.connectionStateChangedCallback);
+  await this.updateCredentials();
   await this.client.login(this.credentials, this.authCallback);
   provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.runForever) idleLoop();
@@ -92,8 +89,6 @@ async function start() {
 
 function close() {
   this.closing = true;
-  console.log('CLOSING', this.closing);
-  clearTimeout(this.fetchCredentialsTimeout);
   if (loopTimer) clearTimeout(loopTimer);
   return this.client.close();
 }
@@ -118,21 +113,18 @@ export function createRpcService({
     credentials,
     credentialsUrl,
   };
-  obj.fetchCredentialsTimeout = [];
+  obj.api = {};
   obj.client = getClient(address, { ...defaultOptions, ...options });
   obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
+  obj.close = close.bind(obj);
   obj.connectionStateChangedCallback = connectionStateChangedCallback.bind(obj);
-  obj.client.on('connectionStateChanged', obj.connectionStateChangedCallback);
-  obj.api = {};
+  obj.fetchCredentials = fetchCredentials.bind(obj);
   obj.getApi = getApi.bind(obj);
   obj.registerApi = registerApi.bind(obj);
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
-  obj.fetchCredentials = fetchCredentials.bind(obj);
   obj.updateCredentials = updateCredentials.bind(obj);
-  obj.close = close.bind(obj);
   process.on('SIGTERM', () => obj.close());
-
   return Object.assign(Object.create({ constructor: createRpcService }), obj);
   // return obj;
 }
@@ -149,8 +141,15 @@ function Service(args) {
     }
   });
 }
-Service.prototype.start = start;
 Service.prototype.close = close;
+Service.prototype.connectionStateChangedCallback = connectionStateChangedCallback;
+Service.prototype.fetchCredentials = fetchCredentials;
+Service.prototype.getApi = getApi;
+Service.prototype.registerApi = registerApi;
+Service.prototype.rpcPath = rpcPath;
+Service.prototype.start = start;
+Service.prototype.updateCredentials = updateCredentials;
+Service.prototype.start = start;
 Service.prototype.rpcPath = rpcPath;
 Service.prototype.registerApi = registerApi;
 export default Service;

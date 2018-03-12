@@ -33,7 +33,7 @@ app.get('/getAuthToken', (req, res) => {
   try {
     currentTokenIndex += 1;
     const token = `TEST${currentTokenIndex}`;
-    activeTokens[token] = setTimeout(() => delete activeTokens[token], 1000);
+    activeTokens[token] = setTimeout(() => delete activeTokens[token], 5000);
     console.log('Generated token:', token);
     res.status(201).json({ token });
   } catch (err) {
@@ -42,10 +42,9 @@ app.get('/getAuthToken', (req, res) => {
   }
 });
 app.post('/authenticate', (req, res) => {
-  console.log('Authenticate');
   try {
     const { id, token } = req.body.authData;
-    console.log('Auth from:', id, 'with token', token);
+    console.log('Auth from:', id, ', token:', token);
     if (id === 'testClient') {
       return res.status(200).json({
         username: id,
@@ -54,9 +53,7 @@ app.post('/authenticate', (req, res) => {
       });
     }
     // Service login
-    console.log('Before token check');
     if (token in activeTokens) {
-      console.log('Token-login:', token);
       delete activeTokens[token];
       return res.status(200).json({
         username: id,
@@ -182,7 +179,7 @@ test('Create & start service again with api registration', async t => {
     if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
   });
   await s.start();
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise(resolve => setTimeout(resolve, 500));
   t.ok(true);
   return connProm;
 });
@@ -194,11 +191,13 @@ test('Request service', async t => {
 
 test('Restart deepstream', async () => {
   dss.stop();
+  await new Promise(resolve => setTimeout(resolve, 500));
   dss2.start();
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Allow service to reconnect
+  await new Promise(resolve => setTimeout(resolve, 500));
 });
 
 test('Request service', async t => {
+  await new Promise(resolve => setTimeout(resolve, 500));
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 2);
 });
