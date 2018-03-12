@@ -1,0 +1,9 @@
+auth:
+  type: http
+  options:
+    # a post request will be send to this url on every incoming connection
+    endpointUrl: http://localhost:3000/authenticate
+    # any of these will be treated as access granted
+    permittedStatusCodes: [ 200 ]
+    # if the webhook didn't respond after this amount of milliseconds, the connection will be rejected
+    requestTimeout: 2000

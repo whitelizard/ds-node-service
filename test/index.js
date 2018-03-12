@@ -5,25 +5,8 @@ import Deepstream from 'deepstream.io';
 import getClient from 'extended-ds-client';
 import Service, { createRpcService } from '../src/index';
 
-const app = express();
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.get('/getAuthToken', (req, res) => {
-  try {
-    const token = 'TEST';
-    res.status(201).json({ token });
-  } catch (err) {
-    console.log('getAuthToken error:', err);
-    res.status(500); // status Internal Server Error
-  }
-});
-let restServer;
-setTimeout(() => {
-  restServer = app.listen(3000);
-}, 3000);
-
-const dss = new Deepstream();
-const dss2 = new Deepstream();
+const dss = new Deepstream('./test/testDsConfig.yml');
+const dss2 = new Deepstream('./test/testDsConfig.yml');
 let c;
 let s;
 let signal;
@@ -40,6 +23,55 @@ const options = {
   maxReconnectAttempts: Infinity,
 };
 
+// AuthenticationHandler mocking
+const app = express();
+let currentTokenIndex = 0;
+const activeTokens = {};
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.get('/getAuthToken', (req, res) => {
+  try {
+    currentTokenIndex += 1;
+    const token = `TEST${currentTokenIndex}`;
+    activeTokens[token] = setTimeout(() => delete activeTokens[token], 1000);
+    console.log('Generated token:', token);
+    res.status(201).json({ token });
+  } catch (err) {
+    console.log('getAuthToken error:', err);
+    res.status(500); // status Internal Server Error
+  }
+});
+app.post('/authenticate', (req, res) => {
+  console.log('Authenticate');
+  try {
+    const { id, token } = req.body.authData;
+    console.log('Auth from:', id, 'with token', token);
+    if (id === 'testClient') {
+      return res.status(200).json({
+        username: id,
+        clientData: { id },
+        serverData: { id },
+      });
+    }
+    // Service login
+    console.log('Before token check');
+    if (token in activeTokens) {
+      console.log('Token-login:', token);
+      delete activeTokens[token];
+      return res.status(200).json({
+        username: id,
+        clientData: { id },
+        serverData: { id, service: true },
+      });
+    }
+    console.log('Failed token login.');
+    return res.status(401).send();
+  } catch (err) {
+    return res.status(500).send();
+  }
+});
+const restServer = app.listen(3000);
+
 test('Start service without deepstream.', async t => {
   connProm = new Promise(resolve => {
     resolveConnected = resolve;
@@ -50,6 +82,7 @@ test('Start service without deepstream.', async t => {
     credentialsUrl: 'http://localhost:3000/getAuthToken',
     runForever: false,
   });
+  console.log('S.LOGIN:::::', s.client.eventNames());
   s.registerApi({
     testFunction: {
       method: data => {
@@ -74,7 +107,7 @@ test('Start deepstream server', async () => {
 test('Create Test-client & request service', async t => {
   c = getClient('localhost:6020', options);
   c.on('error', e => console.log('Test-client Error:', e));
-  c.login({});
+  c.login({ id: 'testClient' });
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 1);
 });
@@ -162,6 +195,12 @@ test('Request service', async t => {
 test('Restart deepstream', async () => {
   dss.stop();
   dss2.start();
+  await new Promise(resolve => setTimeout(resolve, 1000)); // Allow service to reconnect
+});
+
+test('Request service', async t => {
+  await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
+  t.equal(signal, 2);
 });
 
 test('Close clients', async t => {

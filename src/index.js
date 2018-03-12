@@ -20,6 +20,7 @@ const defaultOptions = {
 };
 
 async function fetchCredentials(url) {
+  console.log('CLOSING STATUS: ', this.closing);
   let reply;
   try {
     reply = await fetch(url);
@@ -29,7 +30,26 @@ async function fetchCredentials(url) {
   } catch (err) {
     console.log('Will retry credentials fetch due to:', err);
   }
-  return new Promise(r => setTimeout(r, 1000)).then(fetchCredentials.bind(this, url));
+  return new Promise(r => {
+    this.fetchCredentialsTimeout = setTimeout(r, 1000);
+    console.log('NEW TIMER: ', this.fetchCredentialsTimeout);
+  }).then(this.fetchCredentials.bind(this, url));
+}
+
+async function updateCredentials() {
+  console.log('updateCredentials');
+  if (this.credentialsUrl) {
+    this.credentials = await this.fetchCredentials(this.credentialsUrl);
+    this.credentials.id = this.serviceName;
+    this.client._connection._authParams = this.credentials;
+  }
+}
+
+async function connectionStateChangedCallback(state) {
+  if (state === 'RECONNECTING' && this.credentialsUrl && !this.closing) {
+    console.log('Re-fetching credentials...');
+    this.updateCredentials();
+  }
 }
 
 let loopTimer;
@@ -63,16 +83,17 @@ function rpcPath(name) {
 }
 
 async function start() {
-  if (this.credentialsUrl) {
-    this.credentials = await fetchCredentials(this.credentialsUrl);
-    this.credentials.id = this.serviceName;
-  }
-  this.client.login(this.credentials);
+  this.closing = false;
+  this.updateCredentials();
+  await this.client.login(this.credentials, this.authCallback);
   provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.runForever) idleLoop();
 }
 
 function close() {
+  this.closing = true;
+  console.log('CLOSING', this.closing);
+  clearTimeout(this.fetchCredentialsTimeout);
   if (loopTimer) clearTimeout(loopTimer);
   return this.client.close();
 }
@@ -97,13 +118,18 @@ export function createRpcService({
     credentials,
     credentialsUrl,
   };
+  obj.fetchCredentialsTimeout = [];
   obj.client = getClient(address, { ...defaultOptions, ...options });
   obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
+  obj.connectionStateChangedCallback = connectionStateChangedCallback.bind(obj);
+  obj.client.on('connectionStateChanged', obj.connectionStateChangedCallback);
   obj.api = {};
   obj.getApi = getApi.bind(obj);
   obj.registerApi = registerApi.bind(obj);
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
+  obj.fetchCredentials = fetchCredentials.bind(obj);
+  obj.updateCredentials = updateCredentials.bind(obj);
   obj.close = close.bind(obj);
   process.on('SIGTERM', () => obj.close());
 
