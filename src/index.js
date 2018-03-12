@@ -39,8 +39,7 @@ const idleLoop = () => {
 
 async function onRpc(data = {}, response) {
   try {
-    const { id } = response._connection._authParams;
-    const result = await this.method(data, id);
+    const result = await this.method(data);
     response.send(result);
   } catch (err) {
     // console.log('RPC ERROR:', err);
