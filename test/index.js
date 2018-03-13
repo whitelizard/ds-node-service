@@ -7,6 +7,7 @@ import Service, { createRpcService } from '../src/index';
 
 const dss = new Deepstream('./test/testDsConfig.yml');
 const dss2 = new Deepstream('./test/testDsConfig.yml');
+const dss3 = new Deepstream('./test/testDsConfig.yml');
 let c;
 let s;
 let signal;
@@ -116,11 +117,12 @@ test('Close service', async t => {
   t.ok(true);
 });
 
+let cs;
 test('Inherit from Service', async t => {
   connProm = new Promise(resolve => {
     resolveConnected = resolve;
   }).then(state => console.log(state));
-  class MyService extends Service {
+  class CustomService extends Service {
     constructor({
       name, address, credentialsUrl, runForever,
     }) {
@@ -135,23 +137,53 @@ test('Inherit from Service', async t => {
       return true;
     }
   }
-  Object.setPrototypeOf(MyService.prototype, Service.prototype);
-  Object.setPrototypeOf(MyService, Service);
-  const ms = new MyService({
+  Object.setPrototypeOf(CustomService.prototype, Service.prototype);
+  Object.setPrototypeOf(CustomService, Service);
+  cs = new CustomService({
     name: serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
     runForever: false,
   });
-  ms.client.on('connectionStateChanged', cState => {
+  cs.client.on('connectionStateChanged', cState => {
     console.log(cState);
     if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
   });
-  await ms.start();
-  t.ok(true);
-  t.ok(ms.testFunc());
+  cs.registerApi({
+    testFunction: {
+      method: data => {
+        signal = 2;
+        t.same(data, rpcData);
+      },
+      argDoc: [],
+    },
+  });
+  await cs.start();
   await connProm;
-  ms.close();
+  t.ok(true);
+  t.ok(cs.testFunc());
+});
+
+test('Request service', async t => {
+  await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
+  t.equal(signal, 2);
+});
+
+test('Restart deepstream', async () => {
+  dss.stop();
+  await new Promise(resolve => setTimeout(resolve, 500));
+  dss2.start();
+  await new Promise(resolve => setTimeout(resolve, 500));
+});
+
+test('Request service', async t => {
+  await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
+  t.equal(signal, 2);
+});
+
+test('Close custom service', async t => {
+  cs.close();
+  t.ok(true);
 });
 
 test('Create & start service again with api registration', async t => {
@@ -167,7 +199,7 @@ test('Create & start service again with api registration', async t => {
   s.registerApi({
     testFunction: {
       method: data => {
-        signal = 2;
+        signal = 3;
         t.same(data, rpcData);
         // t.equal(id, serviceName);
       },
@@ -186,20 +218,20 @@ test('Create & start service again with api registration', async t => {
 
 test('Request service', async t => {
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
-  t.equal(signal, 2);
+  t.equal(signal, 3);
 });
 
 test('Restart deepstream', async () => {
-  dss.stop();
+  dss2.stop();
   await new Promise(resolve => setTimeout(resolve, 500));
-  dss2.start();
+  dss3.start();
   await new Promise(resolve => setTimeout(resolve, 500));
 });
 
 test('Request service', async t => {
   await new Promise(resolve => setTimeout(resolve, 500));
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
-  t.equal(signal, 2);
+  t.equal(signal, 3);
 });
 
 test('Close clients', async t => {
@@ -209,6 +241,6 @@ test('Close clients', async t => {
 });
 
 test('Shutdown servers', async () => {
-  dss2.stop();
+  dss3.stop();
   restServer.close();
 });
