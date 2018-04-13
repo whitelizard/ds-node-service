@@ -80,7 +80,7 @@ function rpcPath(name) {
 
 async function start() {
   this.closing = false;
-  this.client.on('connectionStateChanged', this.connectionStateChangedCallback.bind(this));
+  this.client.on('connectionStateChanged', connectionStateChangedCallback.bind(this));
   await this.updateCredentials();
   await this.client.login(this.credentials, this.authCallback);
   provideInterface(this.client, this.rpcPath.bind(this), this.api);
@@ -117,7 +117,6 @@ export function createRpcService({
   obj.client = getClient(address, { ...defaultOptions, ...options });
   obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
   obj.close = close.bind(obj);
-  obj.connectionStateChangedCallback = connectionStateChangedCallback;
   obj.fetchCredentials = fetchCredentials.bind(obj);
   obj.getApi = getApi.bind(obj);
   obj.registerApi = registerApi.bind(obj);
@@ -142,12 +141,8 @@ function Service(args) {
   });
 }
 Service.prototype.close = close;
-Service.prototype.connectionStateChangedCallback = connectionStateChangedCallback;
 Service.prototype.fetchCredentials = fetchCredentials;
 Service.prototype.getApi = getApi;
-Service.prototype.registerApi = registerApi;
-Service.prototype.rpcPath = rpcPath;
-Service.prototype.start = start;
 Service.prototype.updateCredentials = updateCredentials;
 Service.prototype.start = start;
 Service.prototype.rpcPath = rpcPath;
