@@ -3,11 +3,12 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import Deepstream from 'deepstream.io';
 import getClient from 'extended-ds-client';
-import Service, { createRpcService } from '../src/index';
+import Service, { createRpcService, typeAssert } from '../src/index';
 
 const dss = new Deepstream('./test/testDsConfig.yml');
 const dss2 = new Deepstream('./test/testDsConfig.yml');
 const dss3 = new Deepstream('./test/testDsConfig.yml');
+const dss4 = new Deepstream();
 let c;
 let s;
 let signal;
@@ -160,7 +161,6 @@ test('Inherit from Service', async t => {
   });
   await cs.start();
   await connProm;
-  t.ok(true);
   t.ok(cs.testFunc());
 });
 
@@ -234,6 +234,55 @@ test('Request service', async t => {
   t.equal(signal, 3);
 });
 
+test('Restart deepstream', async () => {
+  dss3.stop();
+  await new Promise(resolve => setTimeout(resolve, 500));
+  dss4.start();
+  await new Promise(resolve => setTimeout(resolve, 500));
+});
+
+test('Test the README example', async t => {
+  connProm = new Promise(resolve => {
+    resolveConnected = resolve;
+  }).then(state => console.log(state));
+
+  // const serviceName = 'conf-v1';
+  const address = 'localhost:6020';
+  const credentials = { password: 'secretPassword' };
+
+  function doSomething({ name, properties }) {
+    // DB call or whatever
+  }
+  const service = createRpcService({
+    serviceName,
+    address,
+    runForever: true,
+    credentials,
+  });
+
+  service.registerApi({
+    doSomething: {
+      method: ({ name, properties }) => {
+        typeAssert('String', name);
+        typeAssert('{...}', properties);
+        return doSomething({ name, properties });
+      },
+      argDoc: [['name', 'String'], ['properties', '{...}']],
+    },
+  });
+
+  s.client.on('connectionStateChanged', cState => {
+    console.log(cState);
+    if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
+  });
+
+  await service.start();
+
+  await new Promise(resolve => setTimeout(resolve, 500));
+  t.ok(true);
+  return connProm.then(() => service.close());
+});
+
 test('Close clients', async t => {
   s.close();
   c.close();
@@ -241,6 +290,6 @@ test('Close clients', async t => {
 });
 
 test('Shutdown servers', async () => {
-  dss3.stop();
+  dss4.stop();
   restServer.close();
 });
