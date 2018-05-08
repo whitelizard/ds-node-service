@@ -42,7 +42,7 @@ if (require.main === module) main();
 The base RPC service will on `start()`:
 
 * Fetch credentials if a `credentialsUrl` was provided, otherwise use `credentials`.
-* Log in to deepstream with `authParams` = `{ id: serviceName, ...<return from fetch> }`
+* Log in to deepstream with `authParams` = `{ id: serviceName, ...credentials }`
 * Provide (`rpc.provide(..)`) the RPC functions registered with `registerApi`.
 * Start an idle loop if `runForever` is `true`.
 
