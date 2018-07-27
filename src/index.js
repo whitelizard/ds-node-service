@@ -1,4 +1,4 @@
-import 'babel-polyfill';
+import 'idempotent-babel-polyfill';
 import { typeCheck } from 'type-check';
 import getClient from 'extended-ds-client';
 import mapValues from 'lodash.mapvalues';

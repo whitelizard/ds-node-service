@@ -16,8 +16,8 @@
   "author": "Esbjörn Blomquist",
   "license": "MIT",
   "dependencies": {
-    "babel-polyfill": "^6.26.0",
     "extended-ds-client": "^6.1.2",
+    "idempotent-babel-polyfill": "^6.26.0",
     "lodash.mapvalues": "^4.6.0",
     "node-fetch": "^2.1.2",
     "type-check": "^0.3.2"
