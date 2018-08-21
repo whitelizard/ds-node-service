@@ -220,72 +220,6 @@ test('Try joi 1', async t => {
                 ],
               ],
             ],
-
-            // needleSvg: [ // TODO: WIP!! Use zipWith + reduce(concat) ?
-            //   '%ml%',
-            //   [
-            //     'fn',
-            //     ['size'],
-            //     [
-            //       'let',
-            //       ['c', 250],
-            //       [
-            //         'stringToElement',
-            //         [
-            //           '.',
-            //           'R',
-            //           ['`', 'concat'],
-            //           ['`', '<svg viewBox="0 0 '],
-            //           'size',
-            //           ['`', ' '],
-            //           'size',
-            //           ['`', '" xmlns="http://www.w3.org/2000/svg" style="width:'],
-            //           ['`', 'px; height:'],
-            //           ['`', 'px;"><g><g transform="scale('],
-            //           ['`', ')"><circle cx="'],
-            //           ['`', '" cy="'],
-            //           ['`', '" r="20" style="fill:#000"/><path d="M '],
-            //         ]
-            //         size size'" xmlns="http://www.w3.org/2000/svg" style="width:${size}px; height:${size}px;">'
-            //     <g>
-            //       <g transform="scale(${scale})">
-            //         <circle cx="${c}" cy="${c}" r="20" style="fill:#000"/>
-            //         <path d="M ${c - 50} ${c + 6} L ${c * 1.9} ${c + 2} L ${c * 1.9} ${c - 2} L ${c -
-            //             50} ${c - 6} z" fill="#000" stroke="#111"/>
-            //         <ellipse stroke="#000" ry="25" rx="18" id="svg_1" cy="${c}" cx="${c -
-            //             60}" fill="#000"/>
-            //         <ellipse stroke="#FFF" ry="18" rx="15" id="svg_2" cy="${c}" cx="${c -
-            //             66}" fill="#FFF" stroke="#FFF"/>
-            //       </g>
-            //     </g>
-            //   </svg>
-            // `,
-            //         ],
-            //       ],
-            //     ],
-            //   ],
-            // ],
-
-            // needleSvg: size => {
-            //   const c = 250;
-            //   const scale = size / 500;
-            //   return stringToElement(`
-            //     <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="width:${size}px; height:${size}px;">
-            //       <g>
-            //         <g transform="scale(${scale})">
-            //           <circle cx="${c}" cy="${c}" r="20" style="fill:#000"/>
-            //           <path d="M ${c - 50} ${c + 6} L ${c * 1.9} ${c + 2} L ${c * 1.9} ${c - 2} L ${c -
-            //     50} ${c - 6} z" fill="#000" stroke="#111"/>
-            //           <ellipse stroke="#000" ry="25" rx="18" id="svg_1" cy="${c}" cx="${c -
-            //     60}" fill="#000"/>
-            //           <ellipse stroke="#FFF" ry="18" rx="15" id="svg_2" cy="${c}" cx="${c -
-            //     66}" fill="#FFF" stroke="#FFF"/>
-            //         </g>
-            //       </g>
-            //     </svg>
-            //   `);
-            // },
-            // labelDivider: 1,
             labelRadius: 1.15,
             font: '28px arial',
           },
@@ -306,7 +240,6 @@ test('Try joi 1', async t => {
           },
           hoc: ['%ml%', ['withChannelData', ['get', ['`', 'withChannelDataConf']]]],
           contentProps: {
-            // options: { animation: { duration: 1000 } },
             length: 30,
             data: {
               labels: [['%ml%', ['new', 'Date']]],
@@ -631,8 +564,6 @@ test('Try joi 1', async t => {
           frameProps: {
             title: ['%t%', 'soundSpectrum'],
           },
-          // initGlobalState: ['asset', 'readNotifications', [...]],
-          // whatever: ['%ml%', ['.', 'asset', 'readNotifications', 'asset', ['%asset%', 'rid'], 10]]
           withChannelDataConf: {
             payload: {
               init: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -688,13 +619,6 @@ test('Try joi 1', async t => {
           frameProps: {
             title: ['%t%', 'notifications'],
           },
-          // keyChannelMap: {
-          //   point: {
-          //     init: {},
-          //     channel: { type: 'notification' },
-          //   },
-          // },
-          // config: {},
         },
       ],
     },
