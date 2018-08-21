@@ -18,12 +18,9 @@
   "dependencies": {
     "extended-ds-client": "^6.1.6",
     "idempotent-babel-polyfill": "^6.26.0",
+    "joi": "^13.6.0",
     "lodash.mapvalues": "^4.6.0",
-    "node-fetch": "^2.1.2",
-    "prop-types": "^15.6.2",
-    "prop-types-definition": "^1.0.0",
-    "prop-types-docs": "^0.2.1",
-    "type-check": "^0.3.2"
+    "node-fetch": "^2.1.2"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
