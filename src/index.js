@@ -1,6 +1,7 @@
 import 'idempotent-babel-polyfill';
 import { typeCheck } from 'type-check';
 import getClient from 'extended-ds-client';
+import joi from 'joi';
 import mapValues from 'lodash.mapvalues';
 import fetch from 'node-fetch';
 
@@ -66,12 +67,40 @@ function provideInterface(client, pathFunc, api) {
   Object.keys(api).forEach(f => client.rpc.provide(pathFunc(f), onRpc.bind(api[f])));
 }
 
-function registerApi(api = {}) {
-  this.api = api;
-  this.api.getInterface = {
-    method: () => mapValues(this.api, v => v.argDoc),
-    argDoc: [],
-  };
+const createOnRpc = (spec, impl) => async (data = {}, response) => {
+  try {
+    const args = joi.validate(data, spec);
+    if (args.error) {
+      response.error(args.error.details[0].message);
+    } else {
+      const result = await impl(args);
+      response.send(result);
+    }
+  } catch (err) {
+    // console.log('RPC ERROR:', err);
+    response.error(err.message);
+  }
+};
+function loadApi(client, pathFunc, apiSpec, apiImpl) {
+  Object.keys(apiSpec).forEach(f =>
+    client.rpc.provide(pathFunc(f), createOnRpc(apiSpec[f], apiImpl[f])));
+}
+
+function registerApi(apiSpec = {}, apiImpl) {
+  // api: { name: spec }, impl: { name: func }
+  if (apiImpl) {
+    // New api with verifiable spec objects, and separate implemented functions
+    this.apiSpec = apiSpec;
+    this.apiImpl = apiImpl;
+    this.apiSpec.getInterface = joi.any();
+    this.apiImpl.getInterface = () => mapValues(this.apiSpec, v => v.describe());
+  } else {
+    this.api = apiSpec;
+    this.api.getInterface = {
+      method: () => mapValues(this.api, v => v.argDoc),
+      argDoc: [],
+    };
+  }
 }
 
 function rpcPath(name) {
@@ -83,7 +112,11 @@ async function start() {
   this.client.on('connectionStateChanged', connectionStateChangedCallback.bind(this));
   await this.updateCredentials();
   await this.client.login(this.credentials, this.authCallback);
-  provideInterface(this.client, this.rpcPath.bind(this), this.api);
+  if (this.apiImpl) {
+    loadApi(this.client, this.rpcPath.bind(this), this.apiSpec, this.apiImpl);
+  } else {
+    provideInterface(this.client, this.rpcPath.bind(this), this.api);
+  }
   if (this.runForever) idleLoop();
 }
 
@@ -105,6 +138,7 @@ export function createRpcService({
   runForever = true,
   credentials = {},
   credentialsUrl,
+  clientErrorCallback = Function.prototype,
 }) {
   const obj = {
     serviceName,
@@ -115,7 +149,8 @@ export function createRpcService({
   };
   obj.api = {};
   obj.client = getClient(address, { ...defaultOptions, ...options });
-  obj.client.on('error', e => console.log('GLOBAL ERROR:', e));
+  obj.client.on('error', clientErrorCallback);
+  // if (clientErrorCallback) obj.client.on('error', clientErrorCallback);
   obj.close = close.bind(obj);
   obj.fetchCredentials = fetchCredentials.bind(obj);
   obj.getApi = getApi.bind(obj);
