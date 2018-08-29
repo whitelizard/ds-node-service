@@ -1,5 +1,5 @@
 import 'idempotent-babel-polyfill';
-import { typeCheck } from 'type-check';
+// import { typeCheck } from 'type-check';
 import getClient from 'extended-ds-client';
 import joi from 'joi';
 import mapValues from 'lodash.mapvalues';
@@ -7,11 +7,11 @@ import fetch from 'node-fetch';
 
 export const rpcSplitChar = '/';
 
-export function typeAssert(type, variable, code) {
-  if (!typeCheck(type, variable)) {
-    throw new TypeError(`${code ? `[${code}] ` : ''}${JSON.stringify(variable)} not of type ${type}`);
-  }
-}
+// export function typeAssert(type, variable, code) {
+//   if (!typeCheck(type, variable)) {
+//     throw new TypeError(`${code ? `[${code}] ` : ''}${JSON.stringify(variable)} not of type ${type}`);
+//   }
+// }
 
 const defaultOptions = {
   // Reconnection procedure: R 1s R 2s R 3s ... R 8s R 8s ...
@@ -21,29 +21,28 @@ const defaultOptions = {
 };
 
 async function fetchCredentials(url) {
-  if (this.closing) return undefined;
-  let reply;
+  if (this.state.closing) return undefined;
   try {
-    reply = await fetch(url);
+    const reply = await fetch(url);
     if (reply.status === 201) {
       return reply.json();
     }
   } catch (err) {
     console.log('Will retry credentials fetch due to:', err);
   }
-  return new Promise(r => setTimeout(r, 1000)).then(this.fetchCredentials.bind(this, url));
+  return new Promise(r => setTimeout(r, 1000)).then(fetchCredentials.bind(this, url));
 }
 
 async function updateCredentials() {
-  if (this.credentialsUrl) {
-    this.credentials = await this.fetchCredentials(this.credentialsUrl);
-    this.credentials.id = this.serviceName;
-    this.client._connection._authParams = this.credentials;
+  if (this.config.credentialsUrl) {
+    this.state.credentials = await this.fetchCredentials(this.config.credentialsUrl);
+    this.state.credentials.id = this.serviceName;
+    this.client._connection._authParams = this.state.credentials;
   }
 }
 
 function connectionStateChangedCallback(state) {
-  if (state === 'RECONNECTING' && this.credentialsUrl && !this.closing) {
+  if (state === 'RECONNECTING' && this.config.credentialsUrl && !this.state.closing) {
     console.log('Re-fetching credentials...');
     this.updateCredentials();
   }
@@ -88,40 +87,44 @@ function loadApi(client, pathFunc, apiSpec, apiImpl) {
 
 function registerApi(apiSpec = {}, apiImpl) {
   // api: { name: spec }, impl: { name: func }
-  if (apiImpl) {
-    // New api with verifiable spec objects, and separate implemented functions
-    this.apiSpec = apiSpec;
-    this.apiImpl = apiImpl;
-    this.apiSpec.getInterface = joi.any();
-    this.apiImpl.getInterface = () => mapValues(this.apiSpec, v => v.describe());
-  } else {
-    this.api = apiSpec;
-    this.api.getInterface = {
-      method: () => mapValues(this.api, v => v.argDoc),
-      argDoc: [],
-    };
-  }
+  this.setState({
+    apiSpec: { ...apiSpec, getInterface: joi.any() },
+    apiImpl: { ...apiImpl, getInterface: () => mapValues(apiSpec, v => v.describe()) },
+  });
+  // if (apiImpl) {
+  //   // New api with verifiable spec objects, and separate implemented functions
+  //   this.apiSpec = apiSpec;
+  //   this.apiImpl = apiImpl;
+  //   this.apiSpec.getInterface = joi.any();
+  //   this.apiImpl.getInterface = () => mapValues(this.apiSpec, v => v.describe());
+  // } else {
+  //   this.api = apiSpec;
+  //   this.api.getInterface = {
+  //     method: () => mapValues(this.api, v => v.argDoc),
+  //     argDoc: [],
+  //   };
+  // }
 }
 
 function rpcPath(name) {
-  return `${this.serviceName}${this.splitChar}${name}`;
+  return `${this.name}${this.config.splitChar}${name}`;
 }
 
 async function start() {
-  this.closing = false;
+  this.state.closing = false;
   this.client.on('connectionStateChanged', connectionStateChangedCallback.bind(this));
   await this.updateCredentials();
-  await this.client.login(this.credentials, this.authCallback);
-  if (this.apiImpl) {
-    loadApi(this.client, this.rpcPath.bind(this), this.apiSpec, this.apiImpl);
-  } else {
-    provideInterface(this.client, this.rpcPath.bind(this), this.api);
-  }
-  if (this.runForever) idleLoop();
+  await this.client.login(this.state.credentials, this.authCallback);
+  // if (this.apiImpl) {
+  loadApi(this.client, this.rpcPath.bind(this), this.state.apiSpec, this.state.apiImpl);
+  // } else {
+  //   provideInterface(this.client, this.rpcPath.bind(this), this.api);
+  // }
+  if (this.config.runForever) idleLoop();
 }
 
 function close() {
-  this.closing = true;
+  this.state.closing = true;
   if (loopTimer) clearTimeout(loopTimer);
   return this.client.close();
 }
@@ -131,7 +134,7 @@ function getApi() {
 }
 
 export function createRpcService({
-  serviceName = 'service',
+  name = 'service',
   address,
   options = {},
   splitChar = rpcSplitChar,
@@ -140,16 +143,32 @@ export function createRpcService({
   credentialsUrl,
   clientErrorCallback = Function.prototype,
 }) {
-  const obj = {
-    serviceName,
-    splitChar,
-    runForever,
-    credentials,
-    credentialsUrl,
-  };
-  obj.api = {};
-  obj.client = getClient(address, { ...defaultOptions, ...options });
+  const obj = Object.assign(Object.create({ constructor: createRpcService }), {
+    name,
+    // splitChar,
+    // runForever,
+    // credentials,
+    // credentialsUrl,
+    state: {
+      closing: false,
+      apiSpec: {},
+      apiImpl: {},
+      credentials,
+    },
+    config: {
+      runForever,
+      splitChar,
+      credentialsUrl,
+    },
+    client: getClient(address, { ...defaultOptions, ...options }),
+  });
   obj.client.on('error', clientErrorCallback);
+  // obj.setState = updates => {
+  //   obj.state = { ...obj.state, ...updates };
+  // };
+  // obj.setClosing = v => {
+  //   obj.state.closing = v;
+  // };
   // if (clientErrorCallback) obj.client.on('error', clientErrorCallback);
   obj.close = close.bind(obj);
   obj.fetchCredentials = fetchCredentials.bind(obj);
@@ -158,11 +177,79 @@ export function createRpcService({
   obj.rpcPath = rpcPath.bind(obj);
   obj.start = start.bind(obj);
   obj.updateCredentials = updateCredentials.bind(obj);
-  process.on('SIGTERM', () => obj.close());
-  return Object.assign(Object.create({ constructor: createRpcService }), obj);
-  // return obj;
+  process.on('SIGTERM', obj.close);
+  // return Object.assign(Object.create({ constructor: createRpcService }), obj);
+  return obj;
 }
 createRpcService.of = createRpcService;
+
+// // Another pattern. For future? Better?
+// const obj = Object.assign(Object.create({ constructor: createRpcService }), {
+//   name,
+//   state: {
+//     closing: false,
+//     apiSpec: {},
+//     apiImpl: {},
+//     credentials,
+//   },
+//   client: getClient(address, { ...defaultOptions, ...options }),
+// });
+// obj.client.on('error', clientErrorCallback);
+// obj.setState = updates => {
+//   obj.state = { ...obj.state, ...updates };
+// };
+// obj.close = () => {
+//   obj.state.closing = true;
+//   if (loopTimer) clearTimeout(loopTimer);
+//   return obj.client.close();
+// };
+//
+// obj.fetchCredentials = async (url) => {
+//   if (obj.state.closing) return undefined;
+//   try {
+//     const reply = await fetch(url);
+//     if (reply.status === 201) {
+//       return reply.json();
+//     }
+//   } catch (err) {
+//     console.log('Will retry credentials fetch due to:', err);
+//   }
+//   return new Promise(r => setTimeout(r, 1000)).then(() => obj.fetchCredentials(url));
+// };
+// obj.rpcPath = id => `${obj.name}${obj.splitChar}${id}`;
+//
+// obj.registerApi = (apiSpec = {}, apiImpl) => obj.setState({
+//   apiSpec: { ...apiSpec, getInterface: joi.any() },
+//   apiImpl: { ...apiImpl, getInterface: () => mapValues(apiSpec, v => v.describe()) },
+// });
+//
+// obj.updateCredentials = async () => {
+//   if (credentialsUrl) {
+//     this.credentials = await this.fetchCredentials(credentialsUrl);
+//     this.credentials.id = this.serviceName;
+//     this.client._connection._authParams = this.credentials;
+//   }
+// }
+//
+// function connectionStateChangedCallback(state) {
+//   if (state === 'RECONNECTING' && credentialsUrl && !obj.state.closing) {
+//     console.log('Re-fetching credentials...');
+//     this.updateCredentials();
+//   }
+// }
+//
+// obj.start = async () => {
+//   obj.state.closing = false;
+//   obj.client.on('connectionStateChanged', connectionStateChangedCallback.bind(this));
+//   await this.updateCredentials();
+//   await this.client.login(this.credentials, this.authCallback);
+//   if (this.apiImpl) {
+//     loadApi(this.client, this.rpcPath.bind(this), this.apiSpec, this.apiImpl);
+//   } else {
+//     provideInterface(this.client, this.rpcPath.bind(this), this.api);
+//   }
+//   if (this.runForever) idleLoop();
+// };
 
 // ================================================================================
 //  Class simulation for backward compatibility and cases where inheritance fit
