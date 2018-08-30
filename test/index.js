@@ -4,7 +4,7 @@ import joi from 'joi';
 import bodyParser from 'body-parser';
 import Deepstream from 'deepstream.io';
 import getClient from 'extended-ds-client';
-import Service, { createRpcService, typeAssert } from '../src/index';
+import Service, { createRpcService } from '../src/index';
 
 const dss = new Deepstream('./test/testDsConfig.yml');
 const dss2 = new Deepstream('./test/testDsConfig.yml');
@@ -12,6 +12,7 @@ const dss3 = new Deepstream('./test/testDsConfig.yml');
 const dss4 = new Deepstream();
 let c;
 let s;
+let cs;
 let signal;
 const rpcData = { arg1: 'val1', arg2: 2 };
 const rpcDataSpec = joi.object().keys({
@@ -310,12 +311,11 @@ test('Start service without deepstream.', async t => {
     resolveConnected = resolve;
   });
   s = createRpcService({
-    serviceName,
+    name: serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
     runForever: false,
   });
-  console.log('S.LOGIN:::::', s.client.eventNames());
   s.registerApi(
     {
       testFunction: rpcDataSpec,
@@ -333,6 +333,7 @@ test('Start service without deepstream.', async t => {
   });
   t.ok(true);
 });
+
 test('Start deepstream server', async () => {
   dss.start();
   return connProm;
@@ -353,22 +354,21 @@ test('Close service', async t => {
   t.ok(true);
 });
 
-// let cs;
 test('Inherit from Service', async t => {
   connProm = new Promise(resolve => {
     resolveConnected = resolve;
   }).then(state => console.log(state));
   class CustomService extends Service {
-    constructor({
-      name, address, credentialsUrl, runForever,
-    }) {
-      super({
-        serviceName: name,
-        address,
-        credentialsUrl,
-        runForever,
-      });
-    }
+    // constructor({
+    //   name, address, credentialsUrl, runForever,
+    // }) {
+    //   super({
+    //     name,
+    //     address,
+    //     credentialsUrl,
+    //     runForever,
+    //   });
+    // }
     testFunc() {
       return true;
     }
@@ -410,7 +410,7 @@ test('Restart deepstream', async () => {
   dss.stop();
   await new Promise(resolve => setTimeout(resolve, 500));
   dss2.start();
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 1000));
 });
 
 test('Request service', async t => {
@@ -428,7 +428,7 @@ test('Create & start service again with api registration', async t => {
     resolveConnected = resolve;
   }).then(state => console.log(state));
   s = createRpcService({
-    serviceName,
+    name: serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
     runForever: false,
@@ -463,11 +463,11 @@ test('Restart deepstream', async () => {
   dss2.stop();
   await new Promise(resolve => setTimeout(resolve, 500));
   dss3.start();
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 1000));
 });
 
 test('Request service', async t => {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // await new Promise(resolve => setTimeout(resolve, 500));
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 3);
 });
@@ -506,13 +506,14 @@ test('Test the README example', async t => {
 
   function doSomething({ name, properties }) {
     // DB call or whatever
+    return 5;
   }
   const implementation = {
     doSomething,
   };
 
   const service = createRpcService({
-    serviceName,
+    name: serviceName,
     address,
     runForever: true,
     credentials,
@@ -527,12 +528,51 @@ test('Test the README example', async t => {
 
   await service.start();
 
+  cs = service;
   await new Promise(resolve => setTimeout(resolve, 500));
   t.ok(true);
-  return connProm.then(() => service.close());
+  return connProm;
+});
+
+test('Request README example service FAIL', async t => {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  let message;
+  try {
+    await c.rpc.p.make(`${serviceName}/doSomething`, rpcData);
+  } catch (err) {
+    message = err.message;
+  }
+  console.log(message);
+  t.equal(message, '"arg1" is not allowed');
+  try {
+    await c.rpc.p.make(`${serviceName}/doSomething`, {
+      name: '  !  ',
+      properties: { birth: new Date() },
+    });
+  } catch (err) {
+    message = err.message;
+  }
+  console.log(message);
+  t.equal(message, '"name" must only contain alpha-numeric characters');
+});
+
+test('Request README example service SUCCESS', async t => {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  let message;
+  try {
+    await c.rpc.p.make(`${serviceName}/doSomething`, {
+      name: 'foo4',
+      properties: { birth: new Date() },
+    });
+  } catch (err) {
+    message = err.message;
+  }
+  console.log(message);
+  t.equal(message, undefined);
 });
 
 test('Close clients', async t => {
+  cs.close();
   s.close();
   c.close();
   t.ok(true);

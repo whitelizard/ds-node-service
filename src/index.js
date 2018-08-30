@@ -7,11 +7,9 @@ import fetch from 'node-fetch';
 
 export const rpcSplitChar = '/';
 
-// export function typeAssert(type, variable, code) {
-//   if (!typeCheck(type, variable)) {
-//     throw new TypeError(`${code ? `[${code}] ` : ''}${JSON.stringify(variable)} not of type ${type}`);
-//   }
-// }
+export function typeAssert() {
+  throw new Error('typeAssert deprecated. API spec should be joi schemas, that will be checked automatically');
+}
 
 const defaultOptions = {
   // Reconnection procedure: R 1s R 2s R 3s ... R 8s R 8s ...
@@ -53,18 +51,18 @@ const idleLoop = () => {
   loopTimer = setTimeout(idleLoop, 100000);
 };
 
-async function onRpc(data = {}, response) {
-  try {
-    const result = await this.method(data);
-    response.send(result);
-  } catch (err) {
-    // console.log('RPC ERROR:', err);
-    response.error(err.message);
-  }
-}
-function provideInterface(client, pathFunc, api) {
-  Object.keys(api).forEach(f => client.rpc.provide(pathFunc(f), onRpc.bind(api[f])));
-}
+// async function onRpc(data = {}, response) {
+//   try {
+//     const result = await this.method(data);
+//     response.send(result);
+//   } catch (err) {
+//     // console.log('RPC ERROR:', err);
+//     response.error(err.message);
+//   }
+// }
+// function provideInterface(client, pathFunc, api) {
+//   Object.keys(api).forEach(f => client.rpc.provide(pathFunc(f), onRpc.bind(api[f])));
+// }
 
 const createOnRpc = (spec, impl) => async (data = {}, response) => {
   try {
@@ -72,11 +70,11 @@ const createOnRpc = (spec, impl) => async (data = {}, response) => {
     if (args.error) {
       response.error(args.error.details[0].message);
     } else {
-      const result = await impl(args);
+      const result = await impl(args.value);
       response.send(result);
     }
   } catch (err) {
-    // console.log('RPC ERROR:', err);
+    console.log('RPC ERROR:', err);
     response.error(err.message);
   }
 };
@@ -115,11 +113,9 @@ async function start() {
   this.client.on('connectionStateChanged', connectionStateChangedCallback.bind(this));
   await this.updateCredentials();
   await this.client.login(this.state.credentials, this.authCallback);
-  // if (this.apiImpl) {
+  // console.log('start:', this.state.apiSpec, this.state.apiImpl);
   loadApi(this.client, this.rpcPath.bind(this), this.state.apiSpec, this.state.apiImpl);
-  // } else {
-  //   provideInterface(this.client, this.rpcPath.bind(this), this.api);
-  // }
+  // provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.config.runForever) idleLoop();
 }
 
@@ -143,7 +139,7 @@ export function createRpcService({
   credentialsUrl,
   clientErrorCallback = Function.prototype,
 }) {
-  const obj = Object.assign(Object.create({ constructor: createRpcService }), {
+  const service = Object.assign(Object.create({ constructor: createRpcService }), {
     name,
     // splitChar,
     // runForever,
@@ -162,24 +158,24 @@ export function createRpcService({
     },
     client: getClient(address, { ...defaultOptions, ...options }),
   });
-  obj.client.on('error', clientErrorCallback);
-  // obj.setState = updates => {
-  //   obj.state = { ...obj.state, ...updates };
+  service.client.on('error', clientErrorCallback);
+  service.setState = updates => {
+    service.state = { ...service.state, ...updates };
+  };
+  // service.setClosing = v => {
+  //   service.state.closing = v;
   // };
-  // obj.setClosing = v => {
-  //   obj.state.closing = v;
-  // };
-  // if (clientErrorCallback) obj.client.on('error', clientErrorCallback);
-  obj.close = close.bind(obj);
-  obj.fetchCredentials = fetchCredentials.bind(obj);
-  obj.getApi = getApi.bind(obj);
-  obj.registerApi = registerApi.bind(obj);
-  obj.rpcPath = rpcPath.bind(obj);
-  obj.start = start.bind(obj);
-  obj.updateCredentials = updateCredentials.bind(obj);
-  process.on('SIGTERM', obj.close);
-  // return Object.assign(Object.create({ constructor: createRpcService }), obj);
-  return obj;
+  // if (clientErrorCallback) service.client.on('error', clientErrorCallback);
+  service.close = close.bind(service);
+  service.fetchCredentials = fetchCredentials.bind(service);
+  service.getApi = getApi.bind(service);
+  service.registerApi = registerApi.bind(service);
+  service.rpcPath = rpcPath.bind(service);
+  service.start = start.bind(service);
+  service.updateCredentials = updateCredentials.bind(service);
+  process.on('SIGTERM', service.close);
+  // return Object.assign(Object.create({ constructor: createRpcService }), service);
+  return service;
 }
 createRpcService.of = createRpcService;
 
@@ -262,6 +258,9 @@ function Service(args) {
     }
   });
 }
+Service.prototype.setState = function setState(updates) {
+  this.state = { ...this.state, ...updates };
+};
 Service.prototype.close = close;
 Service.prototype.fetchCredentials = fetchCredentials;
 Service.prototype.getApi = getApi;
