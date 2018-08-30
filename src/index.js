@@ -179,7 +179,8 @@ export function createRpcService({
 }
 createRpcService.of = createRpcService;
 
-// // Another pattern. For future? Better?
+// // Another pattern. For future? Better? Using closure instead of bind(this). Class not possible
+// //
 // const obj = Object.assign(Object.create({ constructor: createRpcService }), {
 //   name,
 //   state: {
