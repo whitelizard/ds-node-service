@@ -500,18 +500,22 @@ test('Test the README example', async t => {
 
   // The API schema should actually rather be placed in a separate file.
   const apiSchema = {
-    doSomething: joi.object().keys({
-      name: joi
-        .string()
-        .trim()
-        .alphanum(),
-      properties: joi
-        .object()
-        .unknown()
-        .keys({
-          birth: joi.date(),
-        }),
-    }),
+    doSomething: {
+      description: 'Test function that does something',
+      args: joi.object().keys({
+        name: joi
+          .string()
+          .trim()
+          .alphanum(),
+        properties: joi
+          .object()
+          .unknown()
+          .keys({
+            birth: joi.date(),
+          }),
+      }),
+      return: joi.number(),
+    },
   };
 
   function doSomething({ name, properties }) {

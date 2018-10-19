@@ -87,7 +87,7 @@ function registerApi(apiSpec = {}, apiImpl) {
   // api: { name: spec }, impl: { name: func }
   const interfaceDescription = mapValues(apiSpec, v => ({
     description: v.description,
-    args: v.args.describe(),
+    args: v.args && v.args.describe(),
     return: v.return && v.return.describe(),
   }));
   // The description below is not returned by "getInterface" but exists for auto-documentation
