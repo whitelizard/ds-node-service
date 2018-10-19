@@ -15,10 +15,18 @@ let s;
 let cs;
 let signal;
 const rpcData = { arg1: 'val1', arg2: 2 };
-const rpcDataSpec = joi.object().keys({
-  arg1: joi.string(),
-  arg2: joi.number().positive(),
-});
+// const rpcDataSpec = joi.object().keys({
+//   arg1: joi.string(),
+//   arg2: joi.number().positive(),
+// });
+const rpcDataSpec = {
+  description: 'My rpc function',
+  args: joi.object().keys({
+    arg1: joi.string(),
+    arg2: joi.number().positive(),
+  }),
+  return: undefined,
+};
 const serviceName = 'testService';
 
 let resolveConnected;
@@ -402,6 +410,7 @@ test('Inherit from Service', async t => {
 });
 
 test('Request service', async t => {
+  await new Promise(resolve => setTimeout(resolve, 10));
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 2);
 });
@@ -414,6 +423,7 @@ test('Restart deepstream', async () => {
 });
 
 test('Request service', async t => {
+  await new Promise(resolve => setTimeout(resolve, 10));
   await c.rpc.p.make(`${serviceName}/testFunction`, rpcData);
   t.equal(signal, 2);
 });
@@ -540,7 +550,7 @@ test('Request README example service FAIL', async t => {
   try {
     await c.rpc.p.make(`${serviceName}/doSomething`, rpcData);
   } catch (err) {
-    message = err.message;
+    ({ message } = err);
   }
   console.log(message);
   t.equal(message, '"arg1" is not allowed');
@@ -550,7 +560,7 @@ test('Request README example service FAIL', async t => {
       properties: { birth: new Date() },
     });
   } catch (err) {
-    message = err.message;
+    ({ message } = err);
   }
   console.log(message);
   t.equal(message, '"name" must only contain alpha-numeric characters');
@@ -565,7 +575,7 @@ test('Request README example service SUCCESS', async t => {
       properties: { birth: new Date() },
     });
   } catch (err) {
-    message = err.message;
+    ({ message } = err);
   }
   console.log(message);
   t.equal(message, undefined);

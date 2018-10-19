@@ -80,14 +80,35 @@ const createOnRpc = (spec, impl) => async (data = {}, response) => {
 };
 function loadApi(client, pathFunc, apiSpec, apiImpl) {
   Object.keys(apiSpec).forEach(f =>
-    client.rpc.provide(pathFunc(f), createOnRpc(apiSpec[f], apiImpl[f])));
+    client.rpc.provide(pathFunc(f), createOnRpc(apiSpec[f].args, apiImpl[f])));
 }
 
 function registerApi(apiSpec = {}, apiImpl) {
   // api: { name: spec }, impl: { name: func }
+  const interfaceDescription = mapValues(apiSpec, v => ({
+    description: v.description,
+    args: v.args.describe(),
+    return: v.return && v.return.describe(),
+  }));
+  // The description below is not returned by "getInterface" but exists for auto-documentation
+  const getInterfaceDescription = {
+    description: joi.string(),
+    args: undefined,
+    return: joi
+      .object()
+      .unknown()
+      .pattern(
+        joi.any(),
+        joi.object().keys({
+          description: joi.string(),
+          args: null,
+          return: joi.any(),
+        }),
+      ),
+  };
   this.setState({
-    apiSpec: { ...apiSpec, getInterface: joi.any() },
-    apiImpl: { ...apiImpl, getInterface: () => mapValues(apiSpec, v => v.describe()) },
+    apiSpec: { ...apiSpec, getInterface: getInterfaceDescription },
+    apiImpl: { ...apiImpl, getInterface: () => interfaceDescription },
   });
   // if (apiImpl) {
   //   // New api with verifiable spec objects, and separate implemented functions
