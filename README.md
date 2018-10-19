@@ -14,18 +14,22 @@ const credentials = { password: 'secretPassword' };
 
 // The API schema should actually rather be placed in a separate file.
 const apiSchema = {
-  doSomething: joi.object().keys({
-    name: joi
-      .string()
-      .trim()
-      .alphanum(),
-    properties: joi
-      .object()
-      .unknown()
-      .keys({
-        birth: joi.date(),
+  doSomething: {
+    description: 'Description for api-function that does something.'
+    args: joi.object().keys({
+      name: joi
+        .string()
+        .trim()
+        .alphanum(),
+      properties: joi
+        .object()
+        .unknown()
+        .keys({
+          birth: joi.date(),
+        }),
       }),
-  }),
+    return: joi.number() // joi-schema for return value or null if no return value
+  }
 };
 
 // The implementation part would also rather have its own file.
@@ -68,7 +72,6 @@ Some more explanatory comments on the example above:
 
 ## Change Log
 
-### 3.0
+### 4.0
 
-- New API where specification & implementation are separated.
-- Specification should be a `joi` schema, that will be automatically asserted, and also returned for `getInterface`. (It can also easily be used for documentation).
+- New structure for the api-description object, adding API-description and return value joi-schema in addition to the existing args joi-schema.
