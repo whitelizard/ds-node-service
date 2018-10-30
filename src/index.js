@@ -80,7 +80,10 @@ const createOnRpc = (spec, impl) => async (data = {}, response) => {
 };
 function loadApi(client, pathFunc, apiSpec, apiImpl) {
   Object.keys(apiSpec).forEach(f =>
-    client.rpc.provide(pathFunc(f), createOnRpc(apiSpec[f].args, apiImpl[f])));
+    client.rpc.provide(
+      pathFunc(f),
+      createOnRpc(apiSpec[f].args.keys({ _id: joi.string() }), apiImpl[f]),
+    ));
 }
 
 function registerApi(apiSpec = {}, apiImpl) {
