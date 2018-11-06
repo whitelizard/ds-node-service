@@ -79,24 +79,23 @@ const createOnRpc = (spec, impl) => async (data = {}, response) => {
   }
 };
 function loadApi(client, pathFunc, apiSpec, apiImpl) {
-  Object.keys(apiSpec).forEach(f =>
+  Object.keys(apiSpec).forEach(f => {
     client.rpc.provide(
       pathFunc(f),
       createOnRpc(apiSpec[f].args.keys({ _id: joi.string() }), apiImpl[f]),
-    ));
+    );
+  });
+}
+
+function getInterface() {
+  return this.state.apiDesc;
 }
 
 function registerApi(apiSpec = {}, apiImpl) {
   // api: { name: spec }, impl: { name: func }
-  const interfaceDescription = mapValues(apiSpec, v => ({
-    description: v.description,
-    args: v.args && v.args.describe(),
-    return: v.return && v.return.describe(),
-  }));
-  // The description below is not returned by "getInterface" but exists for auto-documentation
   const getInterfaceDescription = {
-    description: joi.string(),
-    args: undefined,
+    description: 'Returns the interface of the service.',
+    args: joi.object(),
     return: joi
       .object()
       .unknown()
@@ -104,15 +103,19 @@ function registerApi(apiSpec = {}, apiImpl) {
         joi.any(),
         joi.object().keys({
           description: joi.string(),
-          args: null,
-          return: joi.any(),
+          args: joi.object(),
+          return: joi.object(),
         }),
       ),
   };
-  this.setState({
-    apiSpec: { ...apiSpec, getInterface: getInterfaceDescription },
-    apiImpl: { ...apiImpl, getInterface: () => interfaceDescription },
-  });
+  apiSpec = { ...apiSpec, getInterface: getInterfaceDescription };
+  apiImpl = { ...apiImpl, getInterface: this.getInterface };
+  const apiDesc = mapValues(apiSpec, v => ({
+    description: v.description,
+    args: v.args && v.args.describe(),
+    return: v.return && v.return.describe(),
+  }));
+  this.setState({ apiSpec, apiImpl, apiDesc });
   // if (apiImpl) {
   //   // New api with verifiable spec objects, and separate implemented functions
   //   this.apiSpec = apiSpec;
@@ -147,10 +150,6 @@ function close() {
   this.state.closing = true;
   if (loopTimer) clearTimeout(loopTimer);
   return this.client.close();
-}
-
-function getApi() {
-  return this.api;
 }
 
 export function createRpcService({
@@ -192,7 +191,7 @@ export function createRpcService({
   // if (clientErrorCallback) service.client.on('error', clientErrorCallback);
   service.close = close.bind(service);
   service.fetchCredentials = fetchCredentials.bind(service);
-  service.getApi = getApi.bind(service);
+  service.getInterface = getInterface.bind(service);
   service.registerApi = registerApi.bind(service);
   service.rpcPath = rpcPath.bind(service);
   service.start = start.bind(service);
@@ -288,7 +287,7 @@ Service.prototype.setState = function setState(updates) {
 };
 Service.prototype.close = close;
 Service.prototype.fetchCredentials = fetchCredentials;
-Service.prototype.getApi = getApi;
+Service.prototype.getInterface = getInterface;
 Service.prototype.updateCredentials = updateCredentials;
 Service.prototype.start = start;
 Service.prototype.rpcPath = rpcPath;
