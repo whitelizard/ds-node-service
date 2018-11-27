@@ -8,9 +8,9 @@ Base module for Deepstream RPC based Node services
 import { createRpcService } from 'ds-node-service';
 import joi from 'joi';
 
-const serviceName = 'service1';
+const name = 'service1';
 const address = 'localhost:6020';
-const credentials = { password: 'secretPassword' };
+const credentials = { id: 'serviceId', password: 'secretPassword' };
 
 // The API schema should actually rather be placed in a separate file.
 const apiSchema = {
@@ -43,7 +43,7 @@ const implementation = {
 // Create service, register API (spec & implementation) and start the service.
 async function main() {
   const service = createRpcService({
-    serviceName,
+    name,
     address,
     runForever: true,
     credentials,
@@ -58,8 +58,8 @@ if (require.main === module) main();
 
 The base RPC service will on `start()`:
 
-- Fetch credentials if a `credentialsUrl` was provided, otherwise use `credentials`.
-- Log in to deepstream with `authParams` = `{ id: serviceName, ...credentials }`
+- Fetch credentials, if a `credentialsUrl` was provided, and merge the result with the directly specified `credentials` object.
+- Log in to deepstream with `authParams` = `credentials`
 - Provide (`rpc.provide(..)`) the RPC functions registered with `registerApi`.
 - Start an idle loop if `runForever` is `true`.
 

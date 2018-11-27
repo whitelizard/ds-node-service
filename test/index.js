@@ -39,6 +39,7 @@ const options = {
 const app = express();
 let currentTokenIndex = 0;
 const activeTokens = {};
+let lastLoginId;
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.get('/getAuthToken', (req, res) => {
@@ -58,6 +59,7 @@ app.post('/authenticate', (req, res) => {
     const { id, token } = req.body.authData;
     console.log('Auth from:', id, ', token:', token);
     if (id === 'testClient') {
+      lastLoginId = id;
       return res.status(200).json({
         username: id,
         clientData: { id },
@@ -67,6 +69,7 @@ app.post('/authenticate', (req, res) => {
     // Service login
     if (token in activeTokens) {
       delete activeTokens[token];
+      lastLoginId = id;
       return res.status(200).json({
         username: id,
         clientData: { id },
@@ -89,6 +92,7 @@ test('Start service without deepstream.', async t => {
     name: serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:3000/getAuthToken',
+    credentials: { id: serviceName },
     runForever: false,
   });
   s.registerApi(
@@ -104,7 +108,10 @@ test('Start service without deepstream.', async t => {
   );
   await s.start();
   s.client.on('connectionStateChanged', cState => {
-    if (cState === 'OPEN') resolveConnected();
+    if (cState === 'OPEN') {
+      t.equals(lastLoginId, serviceName);
+      resolveConnected();
+    }
   });
   t.ok(true);
 });

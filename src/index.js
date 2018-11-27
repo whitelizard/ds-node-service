@@ -33,8 +33,10 @@ async function fetchCredentials(url) {
 
 async function updateCredentials() {
   if (this.config.credentialsUrl) {
-    this.state.credentials = await this.fetchCredentials(this.config.credentialsUrl);
-    this.state.credentials.id = this.serviceName;
+    this.state.credentials = {
+      ...this.state.credentials,
+      ...(await this.fetchCredentials(this.config.credentialsUrl)),
+    };
     this.client._connection._authParams = this.state.credentials;
   }
 }
@@ -50,19 +52,6 @@ let loopTimer;
 const idleLoop = () => {
   loopTimer = setTimeout(idleLoop, 100000);
 };
-
-// async function onRpc(data = {}, response) {
-//   try {
-//     const result = await this.method(data);
-//     response.send(result);
-//   } catch (err) {
-//     // console.log('RPC ERROR:', err);
-//     response.error(err.message);
-//   }
-// }
-// function provideInterface(client, pathFunc, api) {
-//   Object.keys(api).forEach(f => client.rpc.provide(pathFunc(f), onRpc.bind(api[f])));
-// }
 
 const createOnRpc = (spec, impl) => async (data = {}, response) => {
   try {
@@ -116,19 +105,6 @@ function registerApi(apiSpec = {}, apiImpl) {
     return: v.return && v.return.describe(),
   }));
   this.setState({ apiSpec, apiImpl, apiDesc });
-  // if (apiImpl) {
-  //   // New api with verifiable spec objects, and separate implemented functions
-  //   this.apiSpec = apiSpec;
-  //   this.apiImpl = apiImpl;
-  //   this.apiSpec.getInterface = joi.any();
-  //   this.apiImpl.getInterface = () => mapValues(this.apiSpec, v => v.describe());
-  // } else {
-  //   this.api = apiSpec;
-  //   this.api.getInterface = {
-  //     method: () => mapValues(this.api, v => v.argDoc),
-  //     argDoc: [],
-  //   };
-  // }
 }
 
 function rpcPath(name) {
@@ -164,10 +140,6 @@ export function createRpcService({
 }) {
   const service = Object.assign(Object.create({ constructor: createRpcService }), {
     name,
-    // splitChar,
-    // runForever,
-    // credentials,
-    // credentialsUrl,
     state: {
       closing: false,
       apiSpec: {},
@@ -185,10 +157,7 @@ export function createRpcService({
   service.setState = updates => {
     service.state = { ...service.state, ...updates };
   };
-  // service.setClosing = v => {
-  //   service.state.closing = v;
-  // };
-  // if (clientErrorCallback) service.client.on('error', clientErrorCallback);
+
   service.close = close.bind(service);
   service.fetchCredentials = fetchCredentials.bind(service);
   service.getInterface = getInterface.bind(service);
@@ -197,7 +166,6 @@ export function createRpcService({
   service.start = start.bind(service);
   service.updateCredentials = updateCredentials.bind(service);
   process.on('SIGTERM', service.close);
-  // return Object.assign(Object.create({ constructor: createRpcService }), service);
   return service;
 }
 createRpcService.of = createRpcService;
