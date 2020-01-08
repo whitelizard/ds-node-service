@@ -1,6 +1,9 @@
 auth:
-  type: http
-  options:
-    endpointUrl: http://localhost:3000/authenticate
-    permittedStatusCodes: [ 200 ]
-    requestTimeout: 2000
+  - type: http
+    options:
+      endpointUrl: http://localhost:3000/authenticate
+      permittedStatusCodes: [200]
+      requestTimeout: 8000
+      retryStatusCodes: [404, 504]
+      retryAttempts: 3
+      retryInterval: 5000

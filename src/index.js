@@ -1,6 +1,6 @@
 import 'idempotent-babel-polyfill';
 // import { typeCheck } from 'type-check';
-import getClient from 'extended-ds-client';
+import { DeepstreamClient } from '@deepstream/client';
 import joi from 'joi';
 import mapValues from 'lodash.mapvalues';
 import fetch from 'node-fetch';
@@ -12,9 +12,8 @@ export function typeAssert() {
 }
 
 const defaultOptions = {
-  // Reconnection procedure: R 1s R 2s R 3s ... R 8s R 8s ...
+  // Reconnection procedure: R 1s R 2s R 3s ...
   reconnectIntervalIncrement: 1000,
-  maxReconnectInterval: 8000,
   maxReconnectAttempts: Infinity,
 };
 
@@ -22,6 +21,8 @@ async function fetchCredentials(url) {
   if (this.state.closing) return undefined;
   try {
     const reply = await fetch(url);
+    // const unpacked = await reply.json();
+    // console.log('Credential fetch status:', reply.status);
     if (reply.status === 201) {
       return reply.json();
     }
@@ -37,7 +38,8 @@ async function updateCredentials() {
       ...this.state.credentials,
       ...(await this.fetchCredentials(this.config.credentialsUrl)),
     };
-    this.client._connection._authParams = this.state.credentials;
+    console.log('Service.updateCredentials:', this.state.credentials);
+    this.client.services.connection.authParams = this.state.credentials;
   }
 }
 
@@ -54,6 +56,7 @@ const idleLoop = () => {
 };
 
 const createOnRpc = (spec, impl) => async (data = {}, response) => {
+  console.log('Incomming RPC to Service, args:', data);
   try {
     const args = joi.validate(data, spec);
     if (args.error) {
@@ -69,6 +72,7 @@ const createOnRpc = (spec, impl) => async (data = {}, response) => {
 };
 function loadApi(client, pathFunc, apiSpec, apiImpl) {
   Object.keys(apiSpec).forEach(f => {
+    // console.log('Service.loadApi:', pathFunc(f));
     client.rpc.provide(
       pathFunc(f),
       createOnRpc(apiSpec[f].args.keys({ _id: joi.string() }), apiImpl[f]),
@@ -80,7 +84,7 @@ function getInterface() {
   return this.state.apiDesc;
 }
 
-function registerApi(apiSpec = {}, apiImpl) {
+function registerApi(apiSpec = {}, apiImpl = {}) {
   // api: { name: spec }, impl: { name: func }
   const getInterfaceDescription = {
     description: 'Returns the interface of the service.',
@@ -115,11 +119,12 @@ async function start() {
   this.state.closing = false;
   this.client.on('connectionStateChanged', connectionStateChangedCallback.bind(this));
   await this.updateCredentials();
-  await this.client.login(this.state.credentials, this.authCallback);
-  // console.log('start:', this.state.apiSpec, this.state.apiImpl);
+  // console.log('Credentials updated. Will try to login.');
+  await this.client.login(this.state.credentials);
   loadApi(this.client, this.rpcPath.bind(this), this.state.apiSpec, this.state.apiImpl);
   // provideInterface(this.client, this.rpcPath.bind(this), this.api);
   if (this.config.runForever) idleLoop();
+  // console.log('start:', this.state.apiSpec, this.state.apiImpl);
 }
 
 function close() {
@@ -151,7 +156,7 @@ export function createRpcService({
       splitChar,
       credentialsUrl,
     },
-    client: getClient(address, { ...defaultOptions, ...options }),
+    client: new DeepstreamClient(address, { ...defaultOptions, ...options }),
   });
   service.client.on('error', clientErrorCallback);
   service.setState = updates => {

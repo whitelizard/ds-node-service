@@ -4,7 +4,7 @@
   "description": "Base class for Deepstream RPC based Node services",
   "main": "index.js",
   "scripts": {
-    "test": "npx babel-node ./test/index.js",
+    "test": "tap --no-timeout test/index.js",
     "build": "babel src -o index.js",
     "prepublish": "npm run build",
     "start": "node --nouse-idle-notification --expose-gc --max-old-space-size=8192 ./index.js"
@@ -16,25 +16,29 @@
   "author": "Esbjörn Blomquist",
   "license": "MIT",
   "dependencies": {
+    "@deepstream/client": "^5.0.5",
     "extended-ds-client": "^6.1.6",
     "idempotent-babel-polyfill": "^6.26.0",
-    "joi": "^13.6.0",
+    "joi": "^13.7.0",
     "lodash.mapvalues": "^4.6.0",
-    "node-fetch": "^2.1.2"
+    "node-fetch": "^2.6.0"
   },
   "devDependencies": {
+    "@deepstream/server": "^5.0.5",
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
     "babel-eslint": "^8.2.6",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-preset-env": "^1.7.0",
     "blue-tape": "^1.0.0",
-    "body-parser": "^1.18.3",
-    "deepstream.io": "^3.1.2",
+    "body-parser": "^1.19.0",
+    "deepstream.io": "^3.2.5",
     "eslint": "^4.19.1",
     "eslint-config-airbnb-base": "^12.0.0",
-    "eslint-plugin-import": "^2.13.0",
+    "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-node": "^6.0.1",
-    "express": "^4.16.3"
+    "express": "^4.17.1",
+    "ramda": "^0.26.1",
+    "tap": "^14.10.5"
   }
 }
