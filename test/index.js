@@ -45,6 +45,7 @@ const rpcTestFuncSpec = {
 };
 
 const getStartedDeepstreamServer = () => {
+  // const dss = new Deepstream();
   const dss = new Deepstream('./test/testDsConfig.yml');
   const [serverStartPromise, serverStartResolve] = triggerPromise();
   dss.on('started', serverStartResolve);
@@ -58,6 +59,15 @@ const stopDeepstreamServer = server => {
   server.stop();
   return asyncWithTimeout(serverStopPromise);
 };
+
+// test('Deepstream server', async t => {
+//   const [serverPromise, dss] = getStartedDeepstreamServer();
+//   await serverPromise;
+//   await wait(200);
+//   await stopDeepstreamServer(dss);
+//   new Promise(() => setTimeout(process.exit, 0)); // eslint-disable-line no-new
+//   t.end();
+// });
 
 test('Start service, Deepstream server, and try simple RPC.', async t => {
   const authServer = createAuthServer().start();
@@ -126,111 +136,103 @@ test('Start service, Deepstream server, and try simple RPC.', async t => {
   t.end();
 });
 
-// test('Test the README example', async t => {
-//   let [promise, resolve] = triggerPromise();
-//
-//   const address = 'localhost:6020';
-//   const credentials = { password: 'secretPassword' };
-//
-//   // The API schema should actually rather be placed in a separate file.
-//   const apiSchema = {
-//     doSomething: {
-//       description: 'Test function that does something',
-//       args: joi.object().keys({
-//         name: joi
-//           .string()
-//           .trim()
-//           .alphanum(),
-//         properties: joi
-//           .object()
-//           .unknown()
-//           .keys({
-//             birth: joi.date(),
-//           }),
-//       }),
-//       return: joi.number(),
-//     },
-//   };
-//
-//   // eslint-disable-next-line
-//   function doSomething({ name, properties }) {
-//     // DB call or whatever
-//     return 5;
-//   }
-//   const implementation = {
-//     doSomething,
-//   };
-//
-//   const service = createRpcService({
-//     name: serviceName,
-//     address,
-//     runForever: true,
-//     credentials,
-//   });
-//
-//   service.registerApi(apiSchema, implementation);
-//
-//   s.client.on('connectionStateChanged', cState => {
-//     // console.log(cState);
-//     if (cState === 'OPEN') setTimeout(() => resolveConnected(cState), 500);
-//   });
-//
-//   service.start();
-//
-//   cs = service;
-//   await new Promise(resolve => setTimeout(resolve, 500));
-//   t.ok(true);
-//   await connProm;
-// });
-//
-// test('Request README example service FAIL', async t => {
-//   await new Promise(resolve => setTimeout(resolve, 500));
-//   let message;
-//   try {
-//     await c.rpc.make(`${serviceName}/doSomething`, rpcTestArgs);
-//   } catch (err) {
-//     ({ message } = err);
-//   }
-//   // console.log(message);
-//   t.equal(message, '"arg1" is not allowed');
-//   try {
-//     await c.rpc.make(`${serviceName}/doSomething`, {
-//       name: '  !  ',
-//       properties: { birth: new Date() },
-//     });
-//   } catch (err) {
-//     ({ message } = err);
-//   }
-//   // console.log(message);
-//   t.equal(message, '"name" must only contain alpha-numeric characters');
-// });
-//
-// test('Request README example service SUCCESS', async t => {
-//   await new Promise(resolve => setTimeout(resolve, 500));
-//   let message;
-//   try {
-//     await c.rpc.make(`${serviceName}/doSomething`, {
-//       name: 'foo4',
-//       properties: { birth: new Date() },
-//     });
-//   } catch (err) {
-//     ({ message } = err);
-//   }
-//   // console.log(message);
-//   t.equal(message, undefined);
-// });
-//
-// test('Close clients', async t => {
-//   console.log('CLOSING CLIENTS');
-//   cs.close();
-//   s.close();
-//   c.close();
-//   t.ok(true);
-// });
-//
-// test('Shutdown', async () => {
-//   console.log('CLEANING UP');
-//   dss4.stop();
-//   restServer.close();
-//   process.exit();
-// });
+test('Test the README example', async t => {
+  const authServer = createAuthServer().start();
+
+  // ________________________________________________________
+  // CODE FROM README (with some minor tweeks)
+
+  const name = 'testService';
+  const address = 'localhost:6020';
+  const credentials = { id: name, password: 'secretPassword' };
+
+  // The API schema should actually rather be placed in a separate file.
+  const apiSchema = {
+    doSomething: {
+      description: 'Description for api-function that does something.',
+      args: joi.object().keys({
+        name: joi
+          .string()
+          .trim()
+          .alphanum(),
+        properties: joi
+          .object()
+          .unknown()
+          .keys({
+            birth: joi.date(),
+          }),
+      }),
+      return: joi.number(), // joi-schema for return value or null if no return value
+    },
+  };
+
+  // The implementation part would also rather have its own file.
+  function doSomething({ name, properties }) {
+    // DB call or whatever
+    return 5;
+  }
+  const implementation = {
+    doSomething,
+  };
+
+  // Create service, register API (spec & implementation) and start the service.
+  const service = createRpcService({
+    name,
+    address,
+    runForever: true,
+    credentials,
+    credentialsUrl: 'http://localhost:3000/getAuthToken',
+  });
+
+  service.registerApi(apiSchema, implementation);
+
+  service.start();
+
+  // ________________________________________________________
+
+  const [serviceConnectedPromise, serviceConnected] = triggerPromise();
+  service.client.on('connectionStateChanged', cState => {
+    console.log('Service client connection state changed:', cState);
+    if (cState === 'OPEN') serviceConnected();
+  });
+
+  const [serverStartedPromise, dss] = getStartedDeepstreamServer();
+  await serverStartedPromise;
+  await asyncWithTimeout(serviceConnectedPromise);
+  await wait(200); // Wait an extra moment for the service to provide its API
+
+  const options = { reconnectIntervalIncrement: 500, maxReconnectAttempts: 5 };
+  const testClient = new DeepstreamClient('localhost:6020', options);
+  testClient.on('error', e => console.log('Test-client Error:', e.message));
+  // testClient.on('connectionStateChanged', cState =>
+  //   console.log('testClient connection state changed:', cState));
+  await testClient.login({ id: 'testClient' });
+
+  t.equals(
+    await testClient.rpc.make(`${name}/doSomething`, {
+      name: 'foo4',
+      properties: { birth: new Date() },
+    }),
+    5,
+  );
+  await t.rejects(testClient.rpc.make(`${name}/doSomething`, rpcTestArgs), '"arg1" is not allowed');
+  console.log('WE GOT HERE');
+  await t.rejects(
+    testClient.rpc.make(`${name}/doSomething`, {
+      name: '  !  ',
+      properties: { birth: new Date() },
+    }),
+    '"name" must only contain alpha-numeric characters',
+  );
+
+  await stopDeepstreamServer(dss);
+  service.close();
+  testClient.close();
+  authServer.stop();
+  t.end();
+});
+
+test('Special extra clean-up due to Deepstream server not releasing context', async t => {
+  new Promise(() => setTimeout(process.exit, 0)); // eslint-disable-line no-new
+  t.end();
+});
