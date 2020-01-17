@@ -1,38 +1,18 @@
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
 import { test } from 'tap';
 import joi from 'joi';
-import * as R from 'ramda';
-import { Deepstream } from '@deepstream/server';
+// import * as R from 'ramda';
+// import { Deepstream } from '@deepstream/server';
 import { DeepstreamClient } from '@deepstream/client';
+import { createAuthServer } from 'i4-js-commons/dist/testing/authMock';
+import {
+  getStartedDeepstreamServer,
+  stopDeepstreamServer,
+  getLoggedInTestClient,
+} from 'i4-js-commons/dist/testing/utils';
+import { wait, asyncWithTimeout, triggerPromise } from 'i4-js-commons/dist/ctrl-utils';
 import { createRpcService } from '../src/index';
-import { createAuthServer } from './authMock';
-
-const wait = delay => new Promise(r => setTimeout(r, delay));
-
-const asyncWithTimeout = (promise, timeout = 3000) =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('asyncWithTimeout: Timeout')), timeout)),
-  ]);
-
-const triggerPromise = () => {
-  let resolve;
-  const promise = new Promise(r => {
-    resolve = r;
-  });
-  return [promise, resolve];
-};
-
-const pollUntil = R.curry(async (compareFn, fn, interval = 10) => {
-  const [promise, resolve] = triggerPromise();
-  const inner = async () => {
-    const result = await fn();
-    if (compareFn(result) === true) resolve(result);
-    else setTimeout(inner, interval);
-  };
-  inner();
-  return promise;
-});
 
 const rpcTestArgs = { arg1: 'val1', arg2: 2 };
 const rpcTestFuncSpec = {
@@ -42,22 +22,6 @@ const rpcTestFuncSpec = {
     arg2: joi.number().positive(),
   }),
   return: undefined,
-};
-
-const getStartedDeepstreamServer = () => {
-  // const dss = new Deepstream();
-  const dss = new Deepstream('./test/testDsConfig.yml');
-  const [serverStartPromise, serverStartResolve] = triggerPromise();
-  dss.on('started', serverStartResolve);
-  dss.start();
-  return [asyncWithTimeout(serverStartPromise), dss];
-};
-
-const stopDeepstreamServer = server => {
-  const [serverStopPromise, serverStopResolve] = triggerPromise();
-  server.on('stopped', serverStopResolve);
-  server.stop();
-  return asyncWithTimeout(serverStopPromise);
 };
 
 // test('Deepstream server', async t => {
@@ -71,63 +35,51 @@ const stopDeepstreamServer = server => {
 
 test('Start service, Deepstream server, and try simple RPC.', async t => {
   const authServer = createAuthServer().start();
-  let signal = 0;
 
   const serviceName = 'testService';
   const service = createRpcService({
     name: serviceName,
     address: 'localhost:6020',
-    credentialsUrl: 'http://localhost:3000/getAuthToken',
+    credentialsUrl: 'http://localhost:8000/getAuthToken',
     credentials: { id: serviceName },
     runForever: false,
+    options: { reconnectIntervalIncrement: 10 },
   });
-  service.registerApi(
-    { testFunction: rpcTestFuncSpec },
-    {
-      testFunction: data => {
-        signal += 1;
-        t.same(data, rpcTestArgs);
-      },
-    },
-  );
+  service.registerApi({ testFunction: rpcTestFuncSpec }, { testFunction: data => data.arg2 + 1 });
   service.start();
 
-  const [serviceConnectedPromise, serviceConnected] = triggerPromise();
+  let [serviceConnectedPromise, serviceConnected] = triggerPromise();
   service.client.on('connectionStateChanged', cState => {
     console.log('Service client connection state changed:', cState);
     if (cState === 'OPEN') serviceConnected();
   });
 
-  const [serverPromise, dss] = getStartedDeepstreamServer();
+  const [serverPromise, dss] = getStartedDeepstreamServer('withAuth');
   await serverPromise;
   await asyncWithTimeout(serviceConnectedPromise);
-  await wait(200); // Wait an extra moment for the service to provide its API
+  await wait(500); // Wait an extra moment for the service to provide its API
 
-  const options = { reconnectIntervalIncrement: 500, maxReconnectAttempts: 5 };
-  const testClient = new DeepstreamClient('localhost:6020', options);
-  testClient.on('error', e => console.log('Test-client Error:', e.message));
-  testClient.on('connectionStateChanged', cState =>
-    console.log('testClient connection state changed:', cState));
-  await testClient.login({ id: 'testClient' });
+  const testClient = await getLoggedInTestClient({ doLog: true });
 
-  await testClient.rpc.make(`${serviceName}/testFunction`, rpcTestArgs);
-  t.equal(signal, 1);
+  const rpcReply = await testClient.rpc.make(`${serviceName}/testFunction`, rpcTestArgs);
+  t.equal(rpcReply, 3, 'Simple RPC reply');
 
-  const reply = await testClient.rpc.make(`${serviceName}/getInterface`);
-  t.same(Object.keys(reply), Object.keys(service.state.apiSpec));
-  t.same(Object.keys(reply), Object.keys(service.state.apiImpl));
+  const apiReply = await testClient.rpc.make(`${serviceName}/getInterface`);
+  t.same(Object.keys(apiReply), Object.keys(service.state.apiSpec), 'getInterface vs apiSpec');
+  t.same(Object.keys(apiReply), Object.keys(service.state.apiImpl), 'getInterface vs apiImpl');
 
-  await wait(2000);
+  // await wait(200);
   await stopDeepstreamServer(dss);
-  await wait(500);
+  await wait(100);
 
+  [serviceConnectedPromise, serviceConnected] = triggerPromise();
   const [serverPromise2, dss2] = getStartedDeepstreamServer();
   await serverPromise2;
   await asyncWithTimeout(serviceConnectedPromise);
-  await wait(1000); // Wait an extra moment for the service to provide its API
+  await wait(500); // Wait an extra moment for the service to provide its API
 
-  await testClient.rpc.make(`${serviceName}/testFunction`, rpcTestArgs);
-  t.equal(signal, 2);
+  const apiReplyAfter = await testClient.rpc.make(`${serviceName}/testFunction`, rpcTestArgs);
+  t.equal(apiReplyAfter, 3, 'Simple RPC reply after server restart');
 
   await stopDeepstreamServer(dss2);
   service.close();
@@ -167,7 +119,7 @@ test('Test the README example', async t => {
   };
 
   // The implementation part would also rather have its own file.
-  function doSomething({ name, properties }) {
+  function doSomething(/* { name, properties } */) {
     // DB call or whatever
     return 5;
   }
@@ -181,7 +133,7 @@ test('Test the README example', async t => {
     address,
     runForever: true,
     credentials,
-    credentialsUrl: 'http://localhost:3000/getAuthToken',
+    credentialsUrl: 'http://localhost:8000/getAuthToken',
   });
 
   service.registerApi(apiSchema, implementation);
@@ -201,12 +153,7 @@ test('Test the README example', async t => {
   await asyncWithTimeout(serviceConnectedPromise);
   await wait(200); // Wait an extra moment for the service to provide its API
 
-  const options = { reconnectIntervalIncrement: 500, maxReconnectAttempts: 5 };
-  const testClient = new DeepstreamClient('localhost:6020', options);
-  testClient.on('error', e => console.log('Test-client Error:', e.message));
-  // testClient.on('connectionStateChanged', cState =>
-  //   console.log('testClient connection state changed:', cState));
-  await testClient.login({ id: 'testClient' });
+  const testClient = await getLoggedInTestClient({ doLog: true });
 
   t.equals(
     await testClient.rpc.make(`${name}/doSomething`, {
@@ -216,7 +163,6 @@ test('Test the README example', async t => {
     5,
   );
   await t.rejects(testClient.rpc.make(`${name}/doSomething`, rpcTestArgs), '"arg1" is not allowed');
-  console.log('WE GOT HERE');
   await t.rejects(
     testClient.rpc.make(`${name}/doSomething`, {
       name: '  !  ',

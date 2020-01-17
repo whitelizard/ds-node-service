@@ -15,7 +15,7 @@ const credentials = { id: 'serviceId', password: 'secretPassword' };
 // The API schema should actually rather be placed in a separate file.
 const apiSchema = {
   doSomething: {
-    description: 'Description for api-function that does something.'
+    description: 'Description for api-function that does something.',
     args: joi.object().keys({
       name: joi
         .string()
@@ -27,9 +27,9 @@ const apiSchema = {
         .keys({
           birth: joi.date(),
         }),
-      }),
-    return: joi.number() // joi-schema for return value or null if no return value
-  }
+    }),
+    return: joi.number(), // joi-schema for return value or null if no return value
+  },
 };
 
 // The implementation part would also rather have its own file.

@@ -1,4 +1,5 @@
-import 'idempotent-babel-polyfill';
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
 // import { typeCheck } from 'type-check';
 import { DeepstreamClient } from '@deepstream/client';
 import joi from 'joi';
