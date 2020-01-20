@@ -2,15 +2,11 @@ import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 // import { typeCheck } from 'type-check';
 import { DeepstreamClient } from '@deepstream/client';
-import joi from 'joi';
+import joi from '@hapi/joi';
 import mapValues from 'lodash.mapvalues';
 import fetch from 'node-fetch';
 
 export const rpcSplitChar = '/';
-
-export function typeAssert() {
-  throw new Error('typeAssert deprecated. API spec should be joi schemas, that will be checked automatically');
-}
 
 const defaultOptions = {
   // Reconnection procedure: R 1s R 2s R 3s ...
@@ -59,7 +55,7 @@ const idleLoop = () => {
 const createOnRpc = (spec, impl) => async (data = {}, response) => {
   console.log('Incomming RPC to Service, args:', data);
   try {
-    const args = joi.validate(data, spec);
+    const args = spec.validate(data);
     if (args.error) {
       response.error(args.error.details[0].message);
     } else {

@@ -1,10 +1,10 @@
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 import { test } from 'tap';
-import joi from 'joi';
+import joi from '@hapi/joi';
 // import * as R from 'ramda';
 // import { Deepstream } from '@deepstream/server';
-import { DeepstreamClient } from '@deepstream/client';
+// import { DeepstreamClient } from "@deepstream/client";
 import { createAuthServer } from 'i4-js-commons/dist/testing/authMock';
 import {
   getStartedDeepstreamServer,
