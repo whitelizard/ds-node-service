@@ -151,7 +151,7 @@ test('Test the README example', async t => {
   const [serverStartedPromise, dss] = getStartedDeepstreamServer();
   await serverStartedPromise;
   await asyncWithTimeout(serviceConnectedPromise);
-  await wait(200); // Wait an extra moment for the service to provide its API
+  await wait(500); // Wait an extra moment for the service to provide its API
 
   const testClient = await getLoggedInTestClient({ doLog: true });
 
