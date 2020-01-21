@@ -110,9 +110,7 @@ test('Test the README example', async t => {
         properties: joi
           .object()
           .unknown()
-          .keys({
-            birth: joi.date(),
-          }),
+          .keys({ birth: joi.date() }),
       }),
       return: joi.number(), // joi-schema for return value or null if no return value
     },
@@ -123,9 +121,7 @@ test('Test the README example', async t => {
     // DB call or whatever
     return 5;
   }
-  const implementation = {
-    doSomething,
-  };
+  const implementation = { doSomething };
 
   // Create service, register API (spec & implementation) and start the service.
   const service = createRpcService({

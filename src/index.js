@@ -35,7 +35,6 @@ async function updateCredentials() {
       ...this.state.credentials,
       ...(await this.fetchCredentials(this.config.credentialsUrl)),
     };
-    console.log('Service.updateCredentials:', this.state.credentials);
     this.client.services.connection.authParams = this.state.credentials;
   }
 }
@@ -53,7 +52,6 @@ const idleLoop = () => {
 };
 
 const createOnRpc = (spec, impl) => async (data = {}, response) => {
-  console.log('Incomming RPC to Service, args:', data);
   try {
     const args = spec.validate(data);
     if (args.error) {
