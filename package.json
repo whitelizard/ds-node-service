@@ -19,7 +19,7 @@
     "@deepstream/client": "^5.0.5",
     "@hapi/joi": "^17.1.0",
     "core-js": "^3.6.4",
-    "i4-js-commons": "^3.10.5",
+    "i4-js-commons": "^3.11.0",
     "lodash.mapvalues": "^4.6.0",
     "node-fetch": "^2.6.0",
     "regenerator-runtime": "^0.13.3"
@@ -33,14 +33,14 @@
     "body-parser": "^1.19.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "^6.9.0",
+    "eslint-config-prettier": "^6.10.0",
     "eslint-plugin-import": "^2.20.0",
     "eslint-plugin-node": "^11.0.0",
     "eslint-plugin-prettier": "^3.0.1",
     "express": "^4.17.1",
-    "ramda": "^0.26.1",
-    "tap": "^14.10.6",
     "prettier": "^1.18.2",
-    "prettier-eslint": "^9.0.1"
+    "prettier-eslint": "^9.0.1",
+    "ramda": "^0.26.1",
+    "tap": "^14.10.6"
   }
 }

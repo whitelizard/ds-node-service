@@ -9,9 +9,10 @@
     "prettier/prettier": "error",
     "no-mixed-operators": [0],
     "arrow-parens": [2, "as-needed"],
-    "object-curly-newline": ["error", { "multiline": true }],
     "function-paren-newline": ["error", "multiline"],
-    "import/prefer-default-export": "off"
+    "import/prefer-default-export": "off",
+    "no-underscore-dangle": ["error", { "allow": ["__"] }],
+    "no-return-assign": ["error", "except-parens"]
   },
   "parserOptions": {
     "ecmaFeatures": {
