@@ -12,7 +12,7 @@ import {
   getLoggedInTestClient,
 } from 'i4-js-commons/dist/testing/utils';
 import { wait, asyncWithTimeout, triggerPromise } from 'i4-js-commons/dist/ctrl-utils';
-import { createRpcService } from '../src/index';
+import { createService } from '../src/index';
 
 const rpcTestArgs = { arg1: 'val1', arg2: 2 };
 const rpcTestFuncSpec = {
@@ -37,7 +37,7 @@ test('Start service, Deepstream server, and try simple RPC.', async t => {
   const authServer = createAuthServer().start();
 
   const serviceName = 'testService';
-  const service = createRpcService({
+  const service = createService({
     name: serviceName,
     address: 'localhost:6020',
     credentialsUrl: 'http://localhost:8000/getAuthToken',
@@ -128,7 +128,7 @@ test('Test the README example', async t => {
   };
 
   // Create service, register API (spec & implementation) and start the service.
-  const service = createRpcService({
+  const service = createService({
     name,
     address,
     runForever: true,

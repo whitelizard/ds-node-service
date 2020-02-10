@@ -130,7 +130,7 @@ function close() {
   return this.client.close();
 }
 
-export function createRpcService({
+export function createService({
   name = 'service',
   address,
   options = {},
@@ -140,7 +140,7 @@ export function createRpcService({
   credentialsUrl,
   clientErrorCallback = Function.prototype,
 }) {
-  const service = Object.assign(Object.create({ constructor: createRpcService }), {
+  const service = Object.assign(Object.create({ constructor: createService }), {
     name,
     state: {
       closing: false,
@@ -170,8 +170,12 @@ export function createRpcService({
   process.on('SIGTERM', service.close);
   return service;
 }
-createRpcService.of = createRpcService;
+createService.of = createService;
 
+export const createRpcService = (...a) => {
+  console.warn('createRpcService is deprecated!');
+  return createService(...a);
+};
 // // Another pattern. For future? Better? Using closure instead of bind(this). Class not possible
 // //
 // const obj = Object.assign(Object.create({ constructor: createRpcService }), {
@@ -245,7 +249,7 @@ createRpcService.of = createRpcService;
 //  Class simulation for backward compatibility and cases where inheritance fit
 
 function Service(args) {
-  const obj = createRpcService(args);
+  const obj = createService(args);
   Object.getOwnPropertyNames(obj).forEach(k => {
     if (typeof obj[k] !== 'function') {
       this[k] = obj[k];
