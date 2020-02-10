@@ -1,6 +1,6 @@
 {
   "name": "ds-node-service",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "description": "Base class for Deepstream RPC based Node services",
   "main": "index.js",
   "scripts": {
